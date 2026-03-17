@@ -217,11 +217,13 @@ export default function Game2048() {
       <div
         className="relative"
         style={{
-          border: "1px solid oklch(0.84 0.17 200 / 0.5)",
-          boxShadow: "0 0 20px oklch(0.84 0.17 200 / 0.3)",
-          borderRadius: "8px",
-          padding: "8px",
-          background: "oklch(0.11 0.02 270)",
+          border: "1px solid oklch(0.84 0.17 200 / 0.6)",
+          boxShadow:
+            "0 0 40px oklch(0.84 0.17 200 / 0.25), 0 0 80px oklch(0.47 0.24 290 / 0.15), inset 0 0 30px oklch(0.10 0.04 280 / 0.5)",
+          borderRadius: "12px",
+          padding: "12px",
+          background:
+            "radial-gradient(ellipse at 30% 20%, oklch(0.13 0.06 285) 0%, oklch(0.09 0.03 270) 50%, oklch(0.06 0.01 265) 100%)",
         }}
       >
         <div

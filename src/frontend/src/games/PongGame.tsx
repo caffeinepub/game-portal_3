@@ -32,34 +32,72 @@ export default function PongGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
-    ctx.fillStyle = "#0B0B10";
+    // Animated background
+    ctx.save();
+    const bgGrad = ctx.createRadialGradient(
+      W / 2,
+      H / 2,
+      0,
+      W / 2,
+      H / 2,
+      W * 0.75,
+    );
+    bgGrad.addColorStop(0, "#0C0A1F");
+    bgGrad.addColorStop(0.5, "#07050F");
+    bgGrad.addColorStop(1, "#020108");
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // grid
-    ctx.strokeStyle = "rgba(0,229,255,0.06)";
+    // Corner energy glows
+    const corners = [
+      [0, 0],
+      [W, 0],
+      [0, H],
+      [W, H],
+    ];
+    for (const [cx2, cy2] of corners) {
+      const cg = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, 120);
+      cg.addColorStop(0, "rgba(124,58,237,0.18)");
+      cg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = cg;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Subtle grid
+    ctx.strokeStyle = "rgba(0,229,255,0.04)";
     ctx.lineWidth = 0.5;
-    for (let x = 0; x <= W; x += 20) {
+    for (let x = 0; x <= W; x += 40) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, H);
       ctx.stroke();
     }
-    for (let y = 0; y <= H; y += 20) {
+    for (let y = 0; y <= H; y += 40) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(W, y);
       ctx.stroke();
     }
 
-    // center line
-    ctx.setLineDash([8, 8]);
-    ctx.strokeStyle = "rgba(0,229,255,0.15)";
-    ctx.lineWidth = 1;
+    // Glowing center line with cursed energy
+    const centerGlow = ctx.createLinearGradient(0, H / 2, W, H / 2);
+    centerGlow.addColorStop(0, "rgba(0,229,255,0)");
+    centerGlow.addColorStop(0.3, "rgba(0,229,255,0.25)");
+    centerGlow.addColorStop(0.5, "rgba(124,58,237,0.5)");
+    centerGlow.addColorStop(0.7, "rgba(0,229,255,0.25)");
+    centerGlow.addColorStop(1, "rgba(0,229,255,0)");
+    ctx.setLineDash([12, 6]);
+    ctx.strokeStyle = centerGlow;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#7C3AED";
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(0, H / 2);
     ctx.lineTo(W, H / 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+    ctx.restore();
 
     // AI paddle (top)
     ctx.shadowColor = "#FF2D78";

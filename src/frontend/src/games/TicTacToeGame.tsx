@@ -186,9 +186,11 @@ export default function TicTacToeGame() {
         className="grid gap-2 p-4 rounded-lg"
         style={{
           gridTemplateColumns: "repeat(3, 100px)",
-          background: "oklch(0.10 0.006 270)",
-          border: "1px solid oklch(0.84 0.17 200 / 0.3)",
-          boxShadow: "0 0 20px oklch(0.84 0.17 200 / 0.1)",
+          background:
+            "radial-gradient(ellipse at center, oklch(0.12 0.04 280) 0%, oklch(0.08 0.02 265) 60%, oklch(0.05 0.01 260) 100%)",
+          border: "1px solid oklch(0.84 0.17 200 / 0.4)",
+          boxShadow:
+            "0 0 30px oklch(0.84 0.17 200 / 0.2), 0 0 60px oklch(0.47 0.24 290 / 0.1), inset 0 0 20px oklch(0.10 0.04 280 / 0.3)",
         }}
         data-ocid="tictactoe.table"
       >

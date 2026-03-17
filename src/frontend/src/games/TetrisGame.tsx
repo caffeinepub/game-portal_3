@@ -165,6 +165,7 @@ export default function TetrisGame() {
     lines: 0,
     running: false,
     gameOver: false,
+    bgFrame: 0,
   });
 
   const rafRef = useRef<number | null>(null);
@@ -185,12 +186,45 @@ export default function TetrisGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
+    // Increment bg animation frame
+    s.bgFrame = (s.bgFrame || 0) + 1;
+    const bgF = s.bgFrame;
+
     // Background
-    ctx.fillStyle = "#0B0B10";
+    ctx.save();
+    const tetBg = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
+    tetBg.addColorStop(0, "#040215");
+    tetBg.addColorStop(0.5, "#07041A");
+    tetBg.addColorStop(1, "#030010");
+    ctx.fillStyle = tetBg;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
+    // Animated ghost blocks drifting down
+    const ghostColors = [
+      "#FF2D78",
+      "#00E5FF",
+      "#FFE600",
+      "#39FF14",
+      "#FF9900",
+      "#7C3AED",
+      "#FF3DF7",
+    ];
+    for (let i = 0; i < 12; i++) {
+      const col2 = (i * 3 + 1) % COLS;
+      const speed = 0.15 + (i % 3) * 0.08;
+      const startY = (i * 47 + 11) % CANVAS_H;
+      const by = ((startY + bgF * speed) % (CANVAS_H + CELL * 4)) - CELL * 2;
+      const colorIdx = i % ghostColors.length;
+      ctx.globalAlpha = 0.06 + Math.sin(bgF * 0.02 + i) * 0.02;
+      ctx.fillStyle = ghostColors[colorIdx];
+      ctx.fillRect(col2 * CELL + 1, by, CELL - 2, CELL - 2);
+      ctx.fillRect(col2 * CELL + 1, by + CELL, CELL - 2, CELL - 2);
+      ctx.fillRect((col2 + 1) * CELL + 1, by + CELL, CELL - 2, CELL - 2);
+    }
+    ctx.globalAlpha = 1;
+
     // Grid lines
-    ctx.strokeStyle = "rgba(0, 229, 255, 0.05)";
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.04)";
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= COLS; x++) {
       ctx.beginPath();
@@ -204,6 +238,13 @@ export default function TetrisGame() {
       ctx.lineTo(CANVAS_W, y * CELL);
       ctx.stroke();
     }
+
+    // Scanlines
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    for (let y = 0; y < CANVAS_H; y += 4) {
+      ctx.fillRect(0, y, CANVAS_W, 2);
+    }
+    ctx.restore();
 
     // Placed blocks
     for (let r = 0; r < ROWS; r++) {

@@ -50,23 +50,59 @@ export default function SnakeGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
-    ctx.fillStyle = "#0B0B10";
+    // Background
+    ctx.save();
+    const bgGrad = ctx.createRadialGradient(
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      0,
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      CANVAS_W * 0.8,
+    );
+    bgGrad.addColorStop(0, "#0D0A1A");
+    bgGrad.addColorStop(0.6, "#080610");
+    bgGrad.addColorStop(1, "#030208");
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    ctx.strokeStyle = "rgba(0, 229, 255, 0.06)";
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= COLS; x++) {
-      ctx.beginPath();
-      ctx.moveTo(x * CELL_SIZE, 0);
-      ctx.lineTo(x * CELL_SIZE, CANVAS_H);
-      ctx.stroke();
+    // Cursed seal hex grid
+    ctx.strokeStyle = "rgba(120, 60, 220, 0.12)";
+    ctx.lineWidth = 0.8;
+    const hexR = 28;
+    const hexW = hexR * Math.sqrt(3);
+    const hexH = hexR * 2;
+    for (let row = -1; row < CANVAS_H / (hexH * 0.75) + 2; row++) {
+      for (let col = -1; col < CANVAS_W / hexW + 2; col++) {
+        const cx2 = col * hexW + (row % 2 === 0 ? 0 : hexW / 2);
+        const cy2 = row * hexH * 0.75;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const hx = cx2 + hexR * Math.cos(angle);
+          const hy = cy2 + hexR * Math.sin(angle);
+          if (i === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
     }
-    for (let y = 0; y <= ROWS; y++) {
-      ctx.beginPath();
-      ctx.moveTo(0, y * CELL_SIZE);
-      ctx.lineTo(CANVAS_W, y * CELL_SIZE);
-      ctx.stroke();
-    }
+
+    // Vignette
+    const vign = ctx.createRadialGradient(
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      CANVAS_W * 0.25,
+      CANVAS_W / 2,
+      CANVAS_H / 2,
+      CANVAS_W * 0.85,
+    );
+    vign.addColorStop(0, "rgba(0,0,0,0)");
+    vign.addColorStop(1, "rgba(0,0,0,0.65)");
+    ctx.fillStyle = vign;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.restore();
 
     const fx = s.food.x * CELL_SIZE + CELL_SIZE / 2;
     const fy = s.food.y * CELL_SIZE + CELL_SIZE / 2;

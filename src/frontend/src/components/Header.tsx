@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Gamepad2 } from "lucide-react";
+import { Flame, Search } from "lucide-react";
 
 const NAV_ITEMS = ["HOME", "GAMES", "LEADERBOARDS", "NEWS", "COMMUNITY"];
 
@@ -8,8 +8,9 @@ export default function Header() {
     <header
       className="sticky top-0 z-50 border-b border-border"
       style={{
-        background: "oklch(0.09 0.008 265 / 0.95)",
-        backdropFilter: "blur(10px)",
+        background: "oklch(0.07 0.015 265 / 0.95)",
+        backdropFilter: "blur(12px)",
+        borderColor: "oklch(0.70 0.22 240 / 0.2)",
       }}
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -19,44 +20,64 @@ export default function Header() {
           className="flex items-center gap-2 no-underline"
           data-ocid="nav.link"
         >
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded border neon-cyan-border">
-            <Gamepad2
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded border"
+            style={{
+              borderColor: "oklch(0.70 0.22 240 / 0.5)",
+              boxShadow:
+                "0 0 8px oklch(0.70 0.22 240 / 0.3), inset 0 0 8px oklch(0.70 0.22 240 / 0.05)",
+            }}
+          >
+            <Flame
               className="w-5 h-5"
-              style={{ color: "var(--neon-cyan)" }}
+              style={{ color: "oklch(0.70 0.22 240)" }}
             />
-            <span className="font-orbitron font-bold text-sm tracking-widest neon-cyan-text">
-              NEON ARCADE
+            <span className="font-cinzel font-bold text-sm tracking-widest cursed-energy-text">
+              CURSED ARCADE
             </span>
           </div>
         </Link>
 
         {/* Nav Links */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-6">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item}
               to="/"
-              className="font-orbitron text-xs font-medium tracking-widest transition-colors no-underline"
-              style={{ color: "oklch(0.84 0.17 200)" }}
+              className="font-cinzel text-xs font-medium tracking-widest transition-colors no-underline hover:text-[oklch(0.85_0.22_240)]"
+              style={{ color: "oklch(0.70 0.22 240)" }}
               data-ocid="nav.link"
             >
               {item}
             </Link>
           ))}
+          <Link
+            to="/search"
+            className="flex items-center gap-1.5 font-cinzel text-xs font-medium tracking-widest transition-colors no-underline px-3 py-1.5 rounded border"
+            style={{
+              color: "oklch(0.65 0.22 290)",
+              borderColor: "oklch(0.45 0.20 290 / 0.5)",
+              boxShadow: "0 0 6px oklch(0.45 0.20 290 / 0.2)",
+            }}
+            data-ocid="nav.link"
+          >
+            <Search className="w-3 h-3" />
+            SEARCH
+          </Link>
         </nav>
 
         {/* Auth buttons */}
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="neon-btn-cyan px-5 py-1.5 rounded-full font-orbitron text-xs tracking-widest uppercase"
+            className="neon-btn-cyan px-5 py-1.5 rounded-full font-cinzel text-xs tracking-widest uppercase"
             data-ocid="nav.link"
           >
             LOGIN
           </button>
           <button
             type="button"
-            className="neon-btn-magenta px-5 py-1.5 rounded-full font-orbitron text-xs tracking-widest uppercase"
+            className="neon-btn-magenta px-5 py-1.5 rounded-full font-cinzel text-xs tracking-widest uppercase"
             data-ocid="nav.link"
           >
             REGISTER

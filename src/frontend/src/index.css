@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,46 +7,49 @@
 @layer base {
   :root {
     --radius: 0.375rem;
-    /* Neon Arcade Dark Theme */
-    --background: 0.09 0.008 265;
-    --foreground: 0.93 0.01 275;
-    --card: 0.1 0.006 270;
-    --card-foreground: 0.93 0.01 275;
-    --popover: 0.12 0.008 270;
-    --popover-foreground: 0.93 0.01 275;
-    --primary: 0.84 0.17 200;
-    --primary-foreground: 0.09 0.008 265;
-    --secondary: 0.47 0.24 290;
-    --secondary-foreground: 0.93 0.01 275;
-    --muted: 0.12 0.008 270;
-    --muted-foreground: 0.72 0.015 280;
-    --accent: 0.63 0.28 315;
-    --accent-foreground: 0.09 0.008 265;
-    --destructive: 0.63 0.22 25;
-    --destructive-foreground: 0.93 0.01 275;
-    --border: 0.22 0.02 270;
-    --input: 0.15 0.01 270;
-    --ring: 0.84 0.17 200;
-    --chart-1: 0.84 0.17 200;
-    --chart-2: 0.63 0.28 315;
-    --chart-3: 0.86 0.28 135;
-    --chart-4: 0.92 0.2 97;
-    --chart-5: 0.47 0.24 290;
-    --sidebar: 0.12 0.008 270;
-    --sidebar-foreground: 0.93 0.01 275;
-    --sidebar-primary: 0.84 0.17 200;
-    --sidebar-primary-foreground: 0.09 0.008 265;
-    --sidebar-accent: 0.47 0.24 290;
-    --sidebar-accent-foreground: 0.93 0.01 275;
-    --sidebar-border: 0.22 0.02 270;
-    --sidebar-ring: 0.84 0.17 200;
+    /* Jujutsu Kaisen Dark Theme */
+    --background: 0.07 0.015 265;
+    --foreground: 0.92 0.01 265;
+    --card: 0.09 0.012 268;
+    --card-foreground: 0.92 0.01 265;
+    --popover: 0.11 0.014 268;
+    --popover-foreground: 0.92 0.01 265;
+    --primary: 0.7 0.22 240;
+    --primary-foreground: 0.07 0.015 265;
+    --secondary: 0.45 0.2 290;
+    --secondary-foreground: 0.92 0.01 265;
+    --muted: 0.12 0.01 268;
+    --muted-foreground: 0.65 0.015 270;
+    --accent: 0.65 0.18 195;
+    --accent-foreground: 0.07 0.015 265;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.92 0.01 265;
+    --border: 0.2 0.025 265;
+    --input: 0.14 0.012 268;
+    --ring: 0.7 0.22 240;
+    --chart-1: 0.7 0.22 240;
+    --chart-2: 0.65 0.18 195;
+    --chart-3: 0.45 0.2 290;
+    --chart-4: 0.55 0.22 25;
+    --chart-5: 0.86 0.28 135;
+    --sidebar: 0.09 0.012 268;
+    --sidebar-foreground: 0.92 0.01 265;
+    --sidebar-primary: 0.7 0.22 240;
+    --sidebar-primary-foreground: 0.07 0.015 265;
+    --sidebar-accent: 0.45 0.2 290;
+    --sidebar-accent-foreground: 0.92 0.01 265;
+    --sidebar-border: 0.2 0.025 265;
+    --sidebar-ring: 0.7 0.22 240;
 
-    /* Neon colors as CSS custom properties */
-    --neon-cyan: oklch(0.84 0.17 200);
-    --neon-magenta: oklch(0.63 0.28 315);
-    --neon-purple: oklch(0.47 0.24 290);
-    --neon-green: oklch(0.86 0.28 135);
+    /* JJK cursed energy colors */
+    --cursed-blue: oklch(0.7 0.22 240);
+    --cursed-purple: oklch(0.45 0.2 290);
+    --cursed-teal: oklch(0.65 0.18 195);
+    --cursed-red: oklch(0.55 0.22 25);
+    --neon-cyan: oklch(0.7 0.22 240);
+    --neon-magenta: oklch(0.45 0.2 290);
     --neon-yellow: oklch(0.92 0.2 97);
+    --neon-green: oklch(0.86 0.28 135);
   }
 
   * {
@@ -59,107 +62,111 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Rajdhani", sans-serif;
-    background-color: oklch(0.09 0.008 265);
+    font-family: "Exo 2", "Orbitron", sans-serif;
+    background-color: oklch(0.07 0.015 265);
   }
 
-  /* Perspective grid background */
-  .perspective-grid {
-    background-image: linear-gradient(
-        oklch(0.84 0.17 200 / 0.15) 1px,
-        transparent 1px
+  /* Cursed seal hexagonal background */
+  .cursed-seal-bg {
+    background-image: repeating-linear-gradient(
+        0deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
       ),
-      linear-gradient(90deg, oklch(0.84 0.17 200 / 0.15) 1px, transparent 1px);
-    background-size: 40px 40px;
-    background-position: center center;
+      repeating-linear-gradient(
+        60deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
+      ),
+      repeating-linear-gradient(
+        120deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
+      );
   }
 
-  /* Neon glow effects */
-  .neon-cyan-text {
-    color: var(--neon-cyan);
-    text-shadow: 0 0 7px var(--neon-cyan), 0 0 10px var(--neon-cyan), 0 0 21px
-      var(--neon-cyan), 0 0 42px var(--neon-cyan);
+  /* Legacy perspective-grid alias */
+  .perspective-grid {
+    background-image: repeating-linear-gradient(
+        0deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
+      ),
+      repeating-linear-gradient(
+        60deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
+      ),
+      repeating-linear-gradient(
+        120deg,
+        oklch(0.7 0.22 240 / 0.06) 0px,
+        transparent 1px,
+        transparent 40px
+      );
   }
 
-  .neon-magenta-text {
-    color: var(--neon-magenta);
-    text-shadow: 0 0 7px var(--neon-magenta), 0 0 10px var(--neon-magenta), 0 0
-      21px var(--neon-magenta), 0 0 42px var(--neon-magenta);
+  /* ── Cursed energy animations ── */
+  @keyframes cursed-flame {
+    0%,
+    100% {
+      text-shadow: 0 0 7px oklch(0.7 0.22 240), 0 0 15px oklch(0.7 0.22 240), 0
+        0 30px oklch(0.45 0.2 290);
+      filter: brightness(1);
+    }
+    50% {
+      text-shadow: 0 0 12px oklch(0.7 0.22 240), 0 0 25px oklch(0.7 0.22 240), 0
+        0 50px oklch(0.45 0.2 290), 0 0 70px oklch(0.45 0.2 290 / 0.5);
+      filter: brightness(1.3);
+    }
   }
 
-  .neon-cyan-border {
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan), inset 0 0
-      5px oklch(0.84 0.17 200 / 0.1);
+  .cursed-energy-text {
+    animation: cursed-flame 2.5s ease-in-out infinite;
+    color: oklch(0.7 0.22 240);
   }
 
-  .neon-magenta-border {
-    border-color: var(--neon-magenta);
-    box-shadow: 0 0 5px var(--neon-magenta), 0 0 10px var(--neon-magenta), inset
-      0 0 5px oklch(0.63 0.28 315 / 0.1);
+  @keyframes curse-particle {
+    0% {
+      transform: translateY(0) translateX(0) scale(1);
+      opacity: 0.7;
+    }
+    33% {
+      transform: translateY(-30px) translateX(15px) scale(1.2);
+      opacity: 1;
+    }
+    66% {
+      transform: translateY(-55px) translateX(-10px) scale(0.8);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(-80px) translateX(5px) scale(0);
+      opacity: 0;
+    }
   }
 
-  .neon-card {
-    background: oklch(0.1 0.006 270);
-    border: 1px solid oklch(0.63 0.28 315 / 0.6);
-    box-shadow: 0 0 10px oklch(0.63 0.28 315 / 0.3), 0 0 20px
-      oklch(0.63 0.28 315 / 0.1), inset 0 0 10px oklch(0.63 0.28 315 / 0.05);
+  .curse-particle {
+    animation: curse-particle 3s ease-out infinite;
   }
 
-  .neon-btn-cyan {
-    background: transparent;
-    border: 1px solid var(--neon-cyan);
-    color: var(--neon-cyan);
-    box-shadow: 0 0 5px var(--neon-cyan), 0 0 10px oklch(0.84 0.17 200 / 0.3);
-    transition: all 0.2s ease;
+  @keyframes domain-pulse {
+    0% {
+      box-shadow: 0 0 0 0 oklch(0.7 0.22 240 / 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 12px oklch(0.7 0.22 240 / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 oklch(0.7 0.22 240 / 0);
+    }
   }
 
-  .neon-btn-cyan:hover {
-    background: oklch(0.84 0.17 200 / 0.15);
-    box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
-  }
-
-  .neon-btn-magenta {
-    background: transparent;
-    border: 1px solid var(--neon-magenta);
-    color: var(--neon-magenta);
-    box-shadow: 0 0 5px var(--neon-magenta), 0 0 10px oklch(0.63 0.28 315 / 0.3);
-    transition: all 0.2s ease;
-  }
-
-  .neon-btn-magenta:hover {
-    background: oklch(0.63 0.28 315 / 0.15);
-    box-shadow: 0 0 10px var(--neon-magenta), 0 0 20px var(--neon-magenta);
-  }
-
-  .neon-btn-filled {
-    background: oklch(0.63 0.28 315);
-    color: oklch(0.09 0.008 265);
-    box-shadow: 0 0 10px var(--neon-magenta), 0 0 20px
-      oklch(0.63 0.28 315 / 0.5);
-    transition: all 0.2s ease;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-  }
-
-  .neon-btn-filled:hover {
-    box-shadow: 0 0 15px var(--neon-magenta), 0 0 30px var(--neon-magenta), 0 0
-      45px oklch(0.63 0.28 315 / 0.5);
-    transform: translateY(-1px);
-  }
-
-  .neon-btn-filled-cyan {
-    background: oklch(0.84 0.17 200);
-    color: oklch(0.09 0.008 265);
-    box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px oklch(0.84 0.17 200 / 0.5);
-    transition: all 0.2s ease;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-  }
-
-  .neon-btn-filled-cyan:hover {
-    box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-cyan);
-    transform: translateY(-1px);
+  .domain-pulse {
+    animation: domain-pulse 2s ease-out infinite;
   }
 
   @keyframes pulse-glow {
@@ -191,6 +198,18 @@
     }
   }
 
+  @keyframes cursed-glow-pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.15);
+    }
+  }
+
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
@@ -199,11 +218,169 @@
     animation: float 3s ease-in-out infinite;
   }
 
+  /* ── JJK color text glows ── */
+  .cursed-blue-text {
+    color: var(--cursed-blue);
+    text-shadow: 0 0 7px var(--cursed-blue), 0 0 14px var(--cursed-blue), 0 0
+      28px oklch(0.7 0.22 240 / 0.6);
+  }
+
+  .cursed-teal-text {
+    color: var(--cursed-teal);
+    text-shadow: 0 0 7px var(--cursed-teal), 0 0 14px var(--cursed-teal);
+  }
+
+  .cursed-purple-text {
+    color: oklch(0.65 0.22 290);
+    text-shadow: 0 0 7px oklch(0.65 0.22 290), 0 0 14px oklch(0.45 0.2 290);
+  }
+
+  /* Legacy aliases used in existing components */
+  .neon-cyan-text {
+    color: var(--cursed-blue);
+    text-shadow: 0 0 7px var(--cursed-blue), 0 0 14px var(--cursed-blue), 0 0
+      28px oklch(0.7 0.22 240 / 0.6);
+  }
+
+  .neon-magenta-text {
+    color: oklch(0.65 0.22 290);
+    text-shadow: 0 0 7px oklch(0.65 0.22 290), 0 0 14px oklch(0.45 0.2 290);
+  }
+
+  /* ── Borders ── */
+  .cursed-blue-border {
+    border-color: var(--cursed-blue);
+    box-shadow: 0 0 5px var(--cursed-blue), 0 0 10px var(--cursed-blue), inset 0
+      0 5px oklch(0.7 0.22 240 / 0.1);
+  }
+
+  .neon-cyan-border {
+    border-color: var(--cursed-blue);
+    box-shadow: 0 0 5px var(--cursed-blue), 0 0 10px var(--cursed-blue), inset 0
+      0 5px oklch(0.7 0.22 240 / 0.1);
+  }
+
+  .neon-magenta-border {
+    border-color: oklch(0.55 0.22 290);
+    box-shadow: 0 0 5px oklch(0.55 0.22 290), 0 0 10px oklch(0.45 0.2 290 / 0.6),
+      inset 0 0 5px oklch(0.45 0.2 290 / 0.1);
+  }
+
+  /* ── Cards ── */
+  .cursed-card {
+    background: oklch(0.09 0.012 268);
+    border: 1px solid oklch(0.7 0.22 240 / 0.35);
+    box-shadow: 0 0 10px oklch(0.7 0.22 240 / 0.15), 0 0 25px
+      oklch(0.45 0.2 290 / 0.08), inset 0 0 10px oklch(0.7 0.22 240 / 0.04);
+  }
+
+  .neon-card {
+    background: oklch(0.09 0.012 268);
+    border: 1px solid oklch(0.7 0.22 240 / 0.35);
+    box-shadow: 0 0 10px oklch(0.7 0.22 240 / 0.15), 0 0 25px
+      oklch(0.45 0.2 290 / 0.08), inset 0 0 10px oklch(0.7 0.22 240 / 0.04);
+  }
+
+  /* ── Buttons ── */
+  .cursed-btn-blue {
+    background: transparent;
+    border: 1px solid var(--cursed-blue);
+    color: var(--cursed-blue);
+    box-shadow: 0 0 5px var(--cursed-blue), 0 0 10px oklch(0.7 0.22 240 / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .cursed-btn-blue:hover {
+    background: oklch(0.7 0.22 240 / 0.15);
+    box-shadow: 0 0 10px var(--cursed-blue), 0 0 20px var(--cursed-blue);
+  }
+
+  .cursed-btn-filled {
+    background: oklch(0.7 0.22 240);
+    color: oklch(0.07 0.015 265);
+    box-shadow: 0 0 10px var(--cursed-blue), 0 0 20px oklch(0.7 0.22 240 / 0.5);
+    transition: all 0.2s ease;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .cursed-btn-filled:hover {
+    box-shadow: 0 0 15px var(--cursed-blue), 0 0 30px var(--cursed-blue), 0 0
+      45px oklch(0.45 0.2 290 / 0.5);
+    transform: translateY(-1px);
+  }
+
+  /* Legacy button aliases */
+  .neon-btn-cyan {
+    background: transparent;
+    border: 1px solid var(--cursed-blue);
+    color: var(--cursed-blue);
+    box-shadow: 0 0 5px var(--cursed-blue), 0 0 10px oklch(0.7 0.22 240 / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .neon-btn-cyan:hover {
+    background: oklch(0.7 0.22 240 / 0.15);
+    box-shadow: 0 0 10px var(--cursed-blue), 0 0 20px var(--cursed-blue);
+  }
+
+  .neon-btn-magenta {
+    background: transparent;
+    border: 1px solid oklch(0.55 0.22 290);
+    color: oklch(0.65 0.22 290);
+    box-shadow: 0 0 5px oklch(0.55 0.22 290), 0 0 10px oklch(0.45 0.2 290 / 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .neon-btn-magenta:hover {
+    background: oklch(0.45 0.2 290 / 0.15);
+    box-shadow: 0 0 10px oklch(0.55 0.22 290), 0 0 20px oklch(0.45 0.2 290);
+  }
+
+  .neon-btn-filled {
+    background: oklch(0.45 0.2 290);
+    color: oklch(0.92 0.01 265);
+    box-shadow: 0 0 10px oklch(0.45 0.2 290), 0 0 20px oklch(0.45 0.2 290 / 0.5);
+    transition: all 0.2s ease;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .neon-btn-filled:hover {
+    box-shadow: 0 0 15px oklch(0.65 0.22 290), 0 0 30px oklch(0.45 0.2 290), 0 0
+      45px oklch(0.7 0.22 240 / 0.4);
+    transform: translateY(-1px);
+  }
+
+  .neon-btn-filled-cyan {
+    background: oklch(0.7 0.22 240);
+    color: oklch(0.07 0.015 265);
+    box-shadow: 0 0 10px var(--cursed-blue), 0 0 20px oklch(0.7 0.22 240 / 0.5);
+    transition: all 0.2s ease;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .neon-btn-filled-cyan:hover {
+    box-shadow: 0 0 15px var(--cursed-blue), 0 0 30px var(--cursed-blue), 0 0
+      45px oklch(0.45 0.2 290 / 0.5);
+    transform: translateY(-1px);
+  }
+
+  /* ── Font helpers ── */
+  .font-cinzel {
+    font-family: "Cinzel", serif;
+  }
+
+  .font-exo {
+    font-family: "Exo 2", sans-serif;
+  }
+
   .font-orbitron {
-    font-family: "Orbitron", sans-serif;
+    font-family: "Cinzel", "Orbitron", serif;
   }
 
   .font-mono-tech {
-    font-family: "Share Tech Mono", monospace;
+    font-family: "Orbitron", monospace;
   }
 }

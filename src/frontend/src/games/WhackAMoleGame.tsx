@@ -158,10 +158,12 @@ export default function WhackAMoleGame() {
         className="relative"
         style={{
           padding: "24px",
-          border: "1px solid oklch(0.84 0.17 200 / 0.5)",
-          boxShadow: "0 0 20px oklch(0.84 0.17 200 / 0.3)",
+          border: "1px solid oklch(0.55 0.18 140 / 0.5)",
+          boxShadow:
+            "0 0 30px oklch(0.55 0.18 140 / 0.2), 0 0 60px oklch(0.30 0.10 140 / 0.1), inset 0 0 40px oklch(0.07 0.02 140 / 0.4)",
           borderRadius: "12px",
-          background: "oklch(0.10 0.01 270)",
+          background:
+            "radial-gradient(ellipse at 50% 110%, oklch(0.14 0.06 140) 0%, oklch(0.09 0.03 200) 40%, oklch(0.06 0.01 265) 100%)",
         }}
       >
         <div

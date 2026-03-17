@@ -80,15 +80,64 @@ export default function SpaceInvadersGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
-    ctx.fillStyle = "#0B0B10";
+    ctx.save();
+    // Deep space gradient
+    const spaceGrad = ctx.createLinearGradient(0, 0, 0, H);
+    spaceGrad.addColorStop(0, "#020008");
+    spaceGrad.addColorStop(0.5, "#050310");
+    spaceGrad.addColorStop(1, "#080218");
+    ctx.fillStyle = spaceGrad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    for (let i = 0; i < 50; i++) {
-      const sx = (i * 137 + 17) % W;
-      const sy = (i * 73 + 41) % H;
-      ctx.fillRect(sx, sy, 1, 1);
+    // Purple nebula
+    const nebula = ctx.createRadialGradient(
+      W * 0.6,
+      H * 0.35,
+      0,
+      W * 0.6,
+      H * 0.35,
+      W * 0.55,
+    );
+    nebula.addColorStop(0, "rgba(80,20,140,0.18)");
+    nebula.addColorStop(0.4, "rgba(40,5,80,0.12)");
+    nebula.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = nebula;
+    ctx.fillRect(0, 0, W, H);
+    const nebula2 = ctx.createRadialGradient(
+      W * 0.25,
+      H * 0.6,
+      0,
+      W * 0.25,
+      H * 0.6,
+      W * 0.35,
+    );
+    nebula2.addColorStop(0, "rgba(0,60,120,0.14)");
+    nebula2.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = nebula2;
+    ctx.fillRect(0, 0, W, H);
+
+    // Layer 1: tiny dim stars
+    for (let i = 0; i < 60; i++) {
+      const bri = Math.sin(s.frame * 0.02 + i * 1.3) * 0.3 + 0.4;
+      ctx.fillStyle = `rgba(180,160,255,${bri})`;
+      ctx.fillRect((i * 137 + 17) % W, (i * 73 + 41) % H, 1, 1);
     }
+    // Layer 2: medium stars with twinkle
+    for (let i = 0; i < 25; i++) {
+      const bri = Math.sin(s.frame * 0.05 + i * 2.1) * 0.4 + 0.5;
+      ctx.fillStyle = `rgba(220,200,255,${bri})`;
+      ctx.fillRect((i * 211 + 53) % W, (i * 167 + 29) % H, 2, 2);
+    }
+    // Layer 3: large bright stars
+    for (let i = 0; i < 8; i++) {
+      const bri = Math.sin(s.frame * 0.03 + i * 3.7) * 0.3 + 0.7;
+      ctx.shadowColor = "rgba(200,180,255,0.8)";
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = `rgba(255,240,255,${bri})`;
+      ctx.fillRect((i * 373 + 91) % W, (i * 251 + 67) % H, 3, 3);
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
 
     for (let idx = 0; idx < s.aliens.length; idx++) {
       const alien = s.aliens[idx];

@@ -4,6 +4,7 @@ import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Order "mo:core/Order";
 import List "mo:core/List";
+import Outcall "./http-outcalls/outcall";
 
 actor {
   type Score = {
@@ -52,6 +53,21 @@ actor {
     let entries = gameScores.entries();
     for ((gameName, _) in entries) {
       gameScores.add(gameName, List.empty<Score>());
+    };
+  };
+
+  public query func transformResponse(input : Outcall.TransformationInput) : async Outcall.TransformationOutput {
+    Outcall.transform(input);
+  };
+
+  public shared func searchWeb(searchQuery : Text) : async Text {
+    // Basic URL encoding: replace spaces with + and encode common special chars
+    let encoded = searchQuery.replace(#char ' ', "+");
+    let url = "https://html.duckduckgo.com/html/?q=" # encoded;
+    try {
+      await Outcall.httpGetRequest(url, [], transformResponse);
+    } catch (_) {
+      "ERROR: Failed to fetch search results";
     };
   };
 };

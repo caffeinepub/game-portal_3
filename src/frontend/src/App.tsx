@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import GamePage from "@/pages/GamePage";
 import HomePage from "@/pages/HomePage";
+import SearchPage from "@/pages/SearchPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -39,7 +40,13 @@ const gameRoute = createRoute({
   component: GamePage,
 });
 
-const routeTree = rootRoute.addChildren([homeRoute, gameRoute]);
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/search",
+  component: SearchPage,
+});
+
+const routeTree = rootRoute.addChildren([homeRoute, gameRoute, searchRoute]);
 
 const router = createRouter({ routeTree });
 

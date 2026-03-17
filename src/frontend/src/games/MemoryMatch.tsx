@@ -167,8 +167,11 @@ export default function MemoryMatch() {
         className="grid gap-3 p-4 rounded-lg"
         style={{
           gridTemplateColumns: "repeat(4, 80px)",
-          background: "oklch(0.10 0.006 270)",
-          border: "1px solid oklch(0.63 0.28 315 / 0.3)",
+          background:
+            "radial-gradient(ellipse at center, oklch(0.11 0.05 280) 0%, oklch(0.08 0.03 270) 50%, oklch(0.05 0.01 260) 100%)",
+          border: "1px solid oklch(0.63 0.28 315 / 0.4)",
+          boxShadow:
+            "0 0 35px oklch(0.63 0.28 315 / 0.15), 0 0 70px oklch(0.47 0.24 290 / 0.1), inset 0 0 25px oklch(0.10 0.04 275 / 0.3)",
         }}
         data-ocid="memory.table"
       >

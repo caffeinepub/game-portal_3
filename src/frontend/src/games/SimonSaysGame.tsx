@@ -150,10 +150,18 @@ export default function SimonSaysGame() {
       <div
         style={{
           padding: "32px",
-          border: "1px solid oklch(0.84 0.17 200 / 0.5)",
-          boxShadow: "0 0 20px oklch(0.84 0.17 200 / 0.3)",
+          border: `1px solid ${activeBtn !== null ? `${BUTTONS[activeBtn].activeColor}80` : "oklch(0.84 0.17 200 / 0.4)"}`,
+          boxShadow:
+            activeBtn !== null
+              ? `0 0 40px ${BUTTONS[activeBtn].shadow}40, 0 0 80px ${BUTTONS[activeBtn].shadow}20, inset 0 0 30px ${BUTTONS[activeBtn].shadow}10`
+              : "0 0 20px oklch(0.84 0.17 200 / 0.2)",
           borderRadius: "16px",
-          background: "oklch(0.10 0.01 270)",
+          background:
+            activeBtn !== null
+              ? `radial-gradient(circle at center, ${BUTTONS[activeBtn].shadow}15 0%, oklch(0.07 0.02 270) 60%, oklch(0.05 0.01 265) 100%)`
+              : "radial-gradient(circle at center, oklch(0.10 0.03 270) 0%, oklch(0.06 0.01 265) 100%)",
+          transition:
+            "box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease",
         }}
       >
         <div

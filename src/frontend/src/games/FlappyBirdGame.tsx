@@ -37,13 +37,84 @@ export default function FlappyBirdGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
-    ctx.fillStyle = "#0B0B10";
+    // Gradient sky
+    ctx.save();
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, "#050210");
+    skyGrad.addColorStop(0.4, "#0A0520");
+    skyGrad.addColorStop(0.7, "#0E0A28");
+    skyGrad.addColorStop(1, "#160A20");
+    ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    for (let i = 0; i < 40; i++) {
-      ctx.fillRect((i * 157 + 11) % W, (i * 89 + 23) % H, 1, 1);
+    // Parallax stars (3 layers)
+    const frame = s.frame;
+    for (let i = 0; i < 30; i++) {
+      const bri = (Math.sin(frame * 0.04 + i * 1.7) * 0.5 + 0.5) * 0.5 + 0.1;
+      ctx.fillStyle = `rgba(200,180,255,${bri})`;
+      ctx.fillRect(
+        (i * 157 + 11 + frame * 0.2) % W,
+        (i * 89 + 23) % (H * 0.6),
+        1,
+        1,
+      );
     }
+    for (let i = 0; i < 15; i++) {
+      const bri = (Math.sin(frame * 0.06 + i * 2.3) * 0.5 + 0.5) * 0.4 + 0.2;
+      ctx.fillStyle = `rgba(255,220,255,${bri})`;
+      ctx.fillRect(
+        (i * 211 + 77 + frame * 0.1) % W,
+        (i * 113 + 11) % (H * 0.55),
+        2,
+        2,
+      );
+    }
+
+    // Neon cityscape silhouette at bottom
+    const buildings = [
+      { x: 0, w: 50, h: 70 },
+      { x: 48, w: 30, h: 100 },
+      { x: 76, w: 60, h: 55 },
+      { x: 134, w: 25, h: 120 },
+      { x: 157, w: 45, h: 80 },
+      { x: 200, w: 35, h: 95 },
+      { x: 233, w: 55, h: 60 },
+      { x: 286, w: 20, h: 110 },
+      { x: 304, w: 50, h: 75 },
+      { x: 352, w: 35, h: 130 },
+      { x: 385, w: 45, h: 65 },
+      { x: 428, w: 52, h: 90 },
+    ];
+    const cityY = H - 40;
+    for (const b of buildings) {
+      // Building body
+      const buildGrad = ctx.createLinearGradient(b.x, cityY - b.h, b.x, cityY);
+      buildGrad.addColorStop(0, "rgba(20,5,50,0.9)");
+      buildGrad.addColorStop(1, "rgba(8,2,20,0.95)");
+      ctx.fillStyle = buildGrad;
+      ctx.fillRect(b.x, cityY - b.h, b.w, b.h);
+      // Edge glow
+      ctx.strokeStyle = "rgba(100,0,200,0.3)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(b.x, cityY - b.h, b.w, b.h);
+      // Random windows
+      for (let wy = cityY - b.h + 8; wy < cityY - 8; wy += 12) {
+        for (let wx = b.x + 5; wx < b.x + b.w - 5; wx += 9) {
+          if ((wx + wy) % 3 !== 0) continue;
+          const wAlpha =
+            Math.sin(frame * 0.02 + wx * 0.1 + wy * 0.07) * 0.3 + 0.7;
+          ctx.fillStyle = `rgba(0,180,255,${wAlpha * 0.6})`;
+          ctx.fillRect(wx, wy, 4, 5);
+        }
+      }
+    }
+    // Ground glow
+    const groundGlow = ctx.createLinearGradient(0, cityY - 10, 0, cityY);
+    groundGlow.addColorStop(0, "rgba(100,0,200,0)");
+    groundGlow.addColorStop(1, "rgba(100,0,200,0.15)");
+    ctx.fillStyle = groundGlow;
+    ctx.fillRect(0, cityY - 10, W, 10);
+    ctx.restore();
 
     for (const pipe of s.pipes) {
       ctx.shadowColor = "#39FF14";

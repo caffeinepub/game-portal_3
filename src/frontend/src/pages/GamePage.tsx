@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import BreakoutGame from "@/games/BreakoutGame";
 import FlappyBirdGame from "@/games/FlappyBirdGame";
 import Game2048 from "@/games/Game2048";
+import HorrorGame from "@/games/HorrorGame";
 import MemoryMatch from "@/games/MemoryMatch";
 import PongGame from "@/games/PongGame";
 import SimonSaysGame from "@/games/SimonSaysGame";
@@ -26,6 +27,7 @@ const GAME_TITLES: Record<string, string> = {
   "2048": "2048",
   whackmole: "WHACK-A-MOLE",
   simon: "SIMON SAYS",
+  horror: "SURVIVE THE NIGHT",
 };
 
 export default function GamePage() {
@@ -56,6 +58,8 @@ export default function GamePage() {
         return <WhackAMoleGame />;
       case "simon":
         return <SimonSaysGame />;
+      case "horror":
+        return <HorrorGame />;
       default:
         return (
           <div className="text-center py-20">

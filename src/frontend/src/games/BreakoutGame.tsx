@@ -73,10 +73,38 @@ export default function BreakoutGame() {
     if (!ctx) return;
     const g = gameRef.current;
 
-    ctx.fillStyle = "#0B0B10";
+    ctx.save();
+    // Background gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, "#040118");
+    bgGrad.addColorStop(0.3, "#07021A");
+    bgGrad.addColorStop(1, "#030010");
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = "rgba(0,229,255,0.04)";
+    // Aurora at top
+    for (let band = 0; band < 3; band++) {
+      const auroraGrad = ctx.createRadialGradient(
+        W * (0.3 + band * 0.2),
+        -20,
+        0,
+        W * (0.3 + band * 0.2),
+        -20,
+        180 + band * 40,
+      );
+      const colors = [
+        ["rgba(0,229,255,0.12)", "rgba(0,229,255,0)"],
+        ["rgba(124,58,237,0.10)", "rgba(124,58,237,0)"],
+        ["rgba(0,255,180,0.08)", "rgba(0,255,180,0)"],
+      ];
+      auroraGrad.addColorStop(0, colors[band][0]);
+      auroraGrad.addColorStop(1, colors[band][1]);
+      ctx.fillStyle = auroraGrad;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Energy grid
+    ctx.strokeStyle = "rgba(0,229,255,0.05)";
     ctx.lineWidth = 1;
     for (let x = 0; x < W; x += 30) {
       ctx.beginPath();
@@ -90,6 +118,27 @@ export default function BreakoutGame() {
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+    // Grid intersection dots
+    ctx.fillStyle = "rgba(0,229,255,0.06)";
+    for (let x = 0; x < W; x += 30) {
+      for (let y = 0; y < H; y += 30) {
+        ctx.fillRect(x - 1, y - 1, 2, 2);
+      }
+    }
+    // Ball glow
+    const ballGlowGrad = ctx.createRadialGradient(
+      g.bx,
+      g.by,
+      0,
+      g.bx,
+      g.by,
+      60,
+    );
+    ballGlowGrad.addColorStop(0, "rgba(255,61,247,0.15)");
+    ballGlowGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = ballGlowGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
 
     for (const b of g.bricks) {
       if (!b.alive) continue;
