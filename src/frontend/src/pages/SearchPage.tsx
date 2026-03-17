@@ -21,6 +21,7 @@ function resolveUrl(input: string): string {
 }
 
 const GAMING_SITES = [
+  { label: "MathFun HW", url: "https://mathfunn.vercel.app/homework.html" },
   { label: "CrazyGames", url: "https://www.crazygames.com" },
   { label: "Poki", url: "https://poki.com" },
   { label: "Y8", url: "https://www.y8.com" },
