@@ -6,17 +6,18 @@ const HOOP_X = 680;
 const HOOP_Y_MIN = 80;
 const HOOP_Y_MAX = 380;
 const HOOP_W = 60;
-const HOOP_INNER = 38;
+const HOOP_INNER = 48;
 const HOOP_THICKNESS = 6;
 const NET_H = 36;
 const PLAYER_X = 90;
 const PLAYER_Y = 320;
 const BALL_R = 16;
-const GRAVITY = 0.38;
-const MAX_MISSES = 3;
+const GRAVITY = 0.32;
+const MAX_MISSES = 5;
 const CURSED_FILLS = 5;
 
 type Phase = "aim" | "flying" | "scored" | "missed" | "gameover" | "idle";
+type GameMode = "1p" | "2p";
 
 interface Ball {
   x: number;
@@ -25,13 +26,19 @@ interface Ball {
   vy: number;
 }
 
-interface GameState {
+interface PlayerState {
   score: number;
-  streak: number;
   misses: number;
+  streak: number;
   cursedFills: number;
   cursedActive: boolean;
   cursedTimer: number;
+}
+
+interface GameState {
+  p1: PlayerState;
+  p2: PlayerState;
+  currentPlayer: 1 | 2;
   hoopY: number;
   hoopDir: number;
   hoopSpeed: number;
@@ -72,17 +79,25 @@ const KANJI_CHARS = [
   "棺",
 ];
 
-function initState(): GameState {
+function initPlayerState(): PlayerState {
   return {
     score: 0,
-    streak: 0,
     misses: 0,
+    streak: 0,
     cursedFills: 0,
     cursedActive: false,
     cursedTimer: 0,
+  };
+}
+
+function initState(): GameState {
+  return {
+    p1: initPlayerState(),
+    p2: initPlayerState(),
+    currentPlayer: 1,
     hoopY: 230,
     hoopDir: 1,
-    hoopSpeed: 1.4,
+    hoopSpeed: 0.8,
     ball: null,
     phase: "idle",
     comboText: "",
@@ -102,7 +117,7 @@ function initState(): GameState {
 }
 
 function getHoopSpeed(score: number): number {
-  return 1.4 + score * 0.12;
+  return Math.min(3.5, 0.8 + score * 0.04);
 }
 
 function spawnParticles(
@@ -127,21 +142,18 @@ function spawnParticles(
 }
 
 function drawCourt(ctx: CanvasRenderingContext2D) {
-  // Sky background gradient
   const bg = ctx.createLinearGradient(0, 0, 0, COURT_H);
   bg.addColorStop(0, "#050510");
   bg.addColorStop(1, "#0a0820");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, COURT_W, COURT_H);
 
-  // Court floor
   const floor = ctx.createLinearGradient(0, 340, 0, COURT_H);
   floor.addColorStop(0, "#1a1008");
   floor.addColorStop(1, "#0d0804");
   ctx.fillStyle = floor;
   ctx.fillRect(0, 340, COURT_W, COURT_H - 340);
 
-  // Court line
   ctx.strokeStyle = "rgba(80,60,20,0.7)";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -149,7 +161,6 @@ function drawCourt(ctx: CanvasRenderingContext2D) {
   ctx.lineTo(COURT_W, 340);
   ctx.stroke();
 
-  // Cursed seal hex pattern on floor
   ctx.save();
   ctx.globalAlpha = 0.18;
   for (let col = 0; col < 9; col++) {
@@ -162,7 +173,6 @@ function drawCourt(ctx: CanvasRenderingContext2D) {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // Outer ring seal on floor center
   ctx.save();
   ctx.globalAlpha = 0.1;
   ctx.strokeStyle = "#3a8fff";
@@ -173,7 +183,6 @@ function drawCourt(ctx: CanvasRenderingContext2D) {
   ctx.beginPath();
   ctx.arc(400, 420, 50, 0, Math.PI * 2);
   ctx.stroke();
-  // Rune marks
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     ctx.save();
@@ -215,7 +224,6 @@ function drawHoop(
     ? "rgba(60,180,255,0.8)"
     : "rgba(255,140,30,0.6)";
 
-  // Backboard
   ctx.save();
   ctx.strokeStyle = cursedActive ? "#3ab8ff" : "#aaa";
   ctx.lineWidth = 4;
@@ -227,7 +235,6 @@ function drawHoop(
   ctx.stroke();
   ctx.restore();
 
-  // Rim glow
   ctx.save();
   ctx.shadowColor = glowColor;
   ctx.shadowBlur = glow;
@@ -238,7 +245,6 @@ function drawHoop(
   ctx.stroke();
   ctx.restore();
 
-  // Net
   ctx.save();
   ctx.strokeStyle = cursedActive
     ? "rgba(100,200,255,0.5)"
@@ -249,7 +255,6 @@ function drawHoop(
   const netTop = hoopY + 6;
   const netBot = hoopY + NET_H;
   const netMid = (netXR - netX) / 2;
-  // Vertical lines
   for (let i = 0; i <= 5; i++) {
     const nx = netX + (i / 5) * (netXR - netX);
     const droop = Math.sin((i / 5) * Math.PI) * 8;
@@ -258,7 +263,6 @@ function drawHoop(
     ctx.lineTo(nx + (netMid - nx + netX) * 0.08, netBot + droop);
     ctx.stroke();
   }
-  // Horizontal lines
   for (let j = 1; j <= 4; j++) {
     const ny = netTop + (j / 5) * NET_H;
     const shrink = (j / 5) * 6;
@@ -271,22 +275,18 @@ function drawHoop(
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D) {
-  // Sorcerer silhouette
   const px = PLAYER_X;
   const py = PLAYER_Y;
   ctx.save();
   ctx.shadowColor = "#3a8fff";
   ctx.shadowBlur = 16;
   ctx.fillStyle = "#0e2a55";
-  // Body
   ctx.beginPath();
   ctx.ellipse(px, py + 35, 16, 32, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Head
   ctx.beginPath();
   ctx.arc(px, py - 5, 14, 0, Math.PI * 2);
   ctx.fill();
-  // Arm reaching
   ctx.strokeStyle = "#0e2a55";
   ctx.lineWidth = 8;
   ctx.lineCap = "round";
@@ -294,7 +294,6 @@ function drawPlayer(ctx: CanvasRenderingContext2D) {
   ctx.moveTo(px + 8, py + 10);
   ctx.quadraticCurveTo(px + 36, py - 12, px + 50, py + 4);
   ctx.stroke();
-  // Glow outline
   ctx.strokeStyle = "rgba(60,140,255,0.3)";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -322,7 +321,6 @@ function drawBall(
     ctx.shadowBlur = 10;
   }
 
-  // Ball body
   const grad = ctx.createRadialGradient(
     x - BALL_R * 0.3,
     y - BALL_R * 0.3,
@@ -339,7 +337,6 @@ function drawBall(
   ctx.arc(x, y, BALL_R, 0, Math.PI * 2);
   ctx.fill();
 
-  // Lines
   ctx.strokeStyle = "rgba(80,30,0,0.7)";
   ctx.lineWidth = 1.5;
   ctx.save();
@@ -348,23 +345,19 @@ function drawBall(
   ctx.beginPath();
   ctx.arc(0, 0, BALL_R, 0, Math.PI * 2);
   ctx.clip();
-  // Horizontal seam
   ctx.beginPath();
   ctx.moveTo(-BALL_R, 0);
   ctx.lineTo(BALL_R, 0);
   ctx.stroke();
-  // Vertical seam
   ctx.beginPath();
   ctx.moveTo(0, -BALL_R);
   ctx.lineTo(0, BALL_R);
   ctx.stroke();
-  // Curved seams
   ctx.beginPath();
   ctx.ellipse(0, 0, BALL_R * 0.5, BALL_R, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 
-  // Cursed energy glow ring
   if (cursedActive) {
     ctx.strokeStyle = "rgba(80,200,255,0.8)";
     ctx.lineWidth = 2;
@@ -379,7 +372,7 @@ function drawBall(
   ctx.restore();
 }
 
-function getAimBall(_state: GameState): { x: number; y: number } {
+function getAimBall(): { x: number; y: number } {
   return { x: PLAYER_X + 55, y: PLAYER_Y + 4 };
 }
 
@@ -405,6 +398,7 @@ function drawAimArc(
     x += pvx;
     y += pvy;
     pvy += GRAVITY;
+
     ctx.lineTo(x, y);
     if (x > COURT_W || x < 0 || y > COURT_H) break;
   }
@@ -421,7 +415,6 @@ function calcLaunchVelocity(
 ): { vx: number; vy: number } {
   const dx = tx - sx;
   const dy = ty - sy;
-  // Time to travel dx horizontally; boost arc
   const t = Math.max(12, Math.abs(dx) / 6);
   const vx = dx / t;
   const vy = dy / t - (GRAVITY * t) / 2;
@@ -429,20 +422,17 @@ function calcLaunchVelocity(
 }
 
 function checkScore(ball: Ball, hoopY: number): "through" | "rim" | "none" {
-  // Through hoop: ball crosses from above hoop rim to below, horizontally within inner width
   const rimLeft = HOOP_X - HOOP_INNER / 2;
   const rimRight = HOOP_X + HOOP_INNER / 2;
-  const rimY = hoopY;
   if (
     ball.x > rimLeft &&
     ball.x < rimRight &&
-    ball.y >= rimY - 4 &&
-    ball.y <= rimY + 10 &&
+    ball.y >= hoopY - 4 &&
+    ball.y <= hoopY + 10 &&
     ball.vy > 0
   ) {
     return "through";
   }
-  // Rim hit: close but not through
   const dist = Math.sqrt((ball.x - HOOP_X) ** 2 + (ball.y - hoopY) ** 2);
   if (dist < HOOP_W / 2 + BALL_R && dist > HOOP_INNER / 2) {
     return "rim";
@@ -450,50 +440,107 @@ function checkScore(ball: Ball, hoopY: number): "through" | "rim" | "none" {
   return "none";
 }
 
+interface UiState {
+  score: number;
+  misses: number;
+  streak: number;
+  cursedFills: number;
+  cursedActive: boolean;
+  p1Score: number;
+  p2Score: number;
+  currentPlayer: 1 | 2;
+  gameOver: boolean;
+  gameStarted: boolean;
+  mode: GameMode | null;
+}
+
 export default function CursedCourtGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(initState());
   const animRef = useRef<number>(0);
   const spinRef = useRef(0);
-  const [uiScore, setUiScore] = useState(0);
-  const [uiMisses, setUiMisses] = useState(0);
-  const [uiStreak, setUiStreak] = useState(0);
-  const [uiCursedFills, setUiCursedFills] = useState(0);
-  const [uiCursedActive, setUiCursedActive] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
+  const modeRef = useRef<GameMode>("1p");
+
+  const [ui, setUi] = useState<UiState>({
+    score: 0,
+    misses: 0,
+    streak: 0,
+    cursedFills: 0,
+    cursedActive: false,
+    p1Score: 0,
+    p2Score: 0,
+    currentPlayer: 1,
+    gameOver: false,
+    gameStarted: false,
+    mode: null,
+  });
+
+  const [p1Wins, setP1Wins] = useState(0);
+  const [p2Wins, setP2Wins] = useState(0);
 
   const syncUI = useCallback(() => {
     const s = stateRef.current;
-    setUiScore(s.score);
-    setUiMisses(s.misses);
-    setUiStreak(s.streak);
-    setUiCursedFills(s.cursedFills);
-    setUiCursedActive(s.cursedActive);
+    const cp = s.currentPlayer === 1 ? s.p1 : s.p2;
+    setUi((prev) => ({
+      ...prev,
+      score: cp.score,
+      misses: cp.misses,
+      streak: cp.streak,
+      cursedFills: cp.cursedFills,
+      cursedActive: cp.cursedActive,
+      p1Score: s.p1.score,
+      p2Score: s.p2.score,
+      currentPlayer: s.currentPlayer,
+    }));
   }, []);
+
+  // Track wins across rematches
+  useEffect(() => {
+    if (ui.gameOver && ui.mode === "2p") {
+      if (ui.p1Score > ui.p2Score) setP1Wins((w) => w + 1);
+      else if (ui.p2Score > ui.p1Score) setP2Wins((w) => w + 1);
+    }
+  }, [ui.gameOver, ui.mode, ui.p1Score, ui.p2Score]);
 
   const activateCursed = useCallback(() => {
     const s = stateRef.current;
-    if (s.cursedFills < CURSED_FILLS || s.cursedActive) return;
-    s.cursedActive = true;
-    s.cursedTimer = 300; // ~5 seconds at 60fps
-    s.cursedFills = 0;
+    const cp = s.currentPlayer === 1 ? s.p1 : s.p2;
+    if (cp.cursedFills < CURSED_FILLS || cp.cursedActive) return;
+    cp.cursedActive = true;
+    cp.cursedTimer = 300;
+    cp.cursedFills = 0;
     syncUI();
   }, [syncUI]);
 
-  const restartGame = useCallback(() => {
+  const startWithMode = useCallback((mode: GameMode) => {
+    modeRef.current = mode;
     stateRef.current = initState();
-    setGameOver(false);
-    setGameStarted(true);
-    syncUI();
-  }, [syncUI]);
-
-  const startGame = useCallback(() => {
-    setGameStarted(true);
     stateRef.current.phase = "idle";
+    setUi((prev) => ({
+      ...prev,
+      gameStarted: true,
+      gameOver: false,
+      mode,
+      score: 0,
+      misses: 0,
+      streak: 0,
+      cursedFills: 0,
+      cursedActive: false,
+      p1Score: 0,
+      p2Score: 0,
+      currentPlayer: 1,
+    }));
   }, []);
 
-  // Mouse/touch handlers
+  const restartGame = useCallback(() => {
+    setUi((prev) => ({
+      ...prev,
+      gameStarted: false,
+      gameOver: false,
+      mode: null,
+    }));
+  }, []);
+
   const getCanvasPos = useCallback(
     (clientX: number, clientY: number): { x: number; y: number } => {
       const canvas = canvasRef.current;
@@ -518,34 +565,39 @@ export default function CursedCourtGame() {
     [getCanvasPos],
   );
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const shoot = useCallback(
+    (clientX: number, clientY: number) => {
       const s = stateRef.current;
-      if (!gameStarted || gameOver) return;
+      if (!ui.gameStarted || ui.gameOver) return;
       if (s.phase !== "idle" && s.phase !== "aim") return;
-      const pos = getCanvasPos(e.clientX, e.clientY);
-      const start = getAimBall(s);
+      // In 2p mode, don't allow shooting if current player is already out
+      if (modeRef.current === "2p") {
+        const cp = s.currentPlayer === 1 ? s.p1 : s.p2;
+        if (cp.misses >= MAX_MISSES) return;
+      }
+      const pos = getCanvasPos(clientX, clientY);
+      const start = getAimBall();
       const { vx, vy } = calcLaunchVelocity(start.x, start.y, pos.x, pos.y);
       s.ball = { x: start.x, y: start.y, vx, vy };
       s.phase = "flying";
     },
-    [gameStarted, gameOver, getCanvasPos],
+    [ui.gameStarted, ui.gameOver, getCanvasPos],
+  );
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      shoot(e.clientX, e.clientY);
+    },
+    [shoot],
   );
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
       e.preventDefault();
-      const s = stateRef.current;
-      if (!gameStarted || gameOver) return;
-      if (s.phase !== "idle" && s.phase !== "aim") return;
       const touch = e.changedTouches[0];
-      const pos = getCanvasPos(touch.clientX, touch.clientY);
-      const start = getAimBall(s);
-      const { vx, vy } = calcLaunchVelocity(start.x, start.y, pos.x, pos.y);
-      s.ball = { x: start.x, y: start.y, vx, vy };
-      s.phase = "flying";
+      shoot(touch.clientX, touch.clientY);
     },
-    [gameStarted, gameOver, getCanvasPos],
+    [shoot],
   );
 
   useEffect(() => {
@@ -556,17 +608,23 @@ export default function CursedCourtGame() {
 
     const loop = () => {
       const s = stateRef.current;
+      const gameStarted = ui.gameStarted;
+      const gameOver = ui.gameOver;
       s.frameCount++;
+
+      // Current player ref
+      const cp = s.currentPlayer === 1 ? s.p1 : s.p2;
 
       // Update hoop
       if (gameStarted && !gameOver) {
-        s.hoopSpeed = getHoopSpeed(s.score);
-        if (s.cursedActive) {
+        const totalScore = s.p1.score + s.p2.score;
+        s.hoopSpeed = getHoopSpeed(totalScore);
+        if (cp.cursedActive) {
           s.hoopY += s.hoopDir * s.hoopSpeed * 0.22;
-          s.cursedTimer--;
-          if (s.cursedTimer <= 0) {
-            s.cursedActive = false;
-            s.cursedTimer = 0;
+          cp.cursedTimer--;
+          if (cp.cursedTimer <= 0) {
+            cp.cursedActive = false;
+            cp.cursedTimer = 0;
           }
         } else {
           s.hoopY += s.hoopDir * s.hoopSpeed;
@@ -601,7 +659,6 @@ export default function CursedCourtGame() {
         }))
         .filter((p) => p.life > 0);
 
-      // Update combo text fade
       if (s.comboAlpha > 0) s.comboAlpha -= 0.018;
 
       // Ball physics
@@ -615,13 +672,13 @@ export default function CursedCourtGame() {
         const result = checkScore(s.ball, s.hoopY);
 
         if (result === "through") {
-          s.score += 1;
-          s.streak += 1;
-          s.cursedFills = Math.min(CURSED_FILLS, s.cursedFills + 1);
+          cp.score += 1;
+          cp.streak += 1;
+          cp.cursedFills = Math.min(CURSED_FILLS, cp.cursedFills + 1);
           let combo = "";
-          if (s.streak >= 5) combo = `CURSED COMBO x${s.streak}!`;
-          else if (s.streak >= 3) combo = `CURSED STREAK x${s.streak}!`;
-          else if (s.streak >= 2) combo = "NICE!";
+          if (cp.streak >= 5) combo = `CURSED COMBO x${cp.streak}!`;
+          else if (cp.streak >= 3) combo = `CURSED STREAK x${cp.streak}!`;
+          else if (cp.streak >= 2) combo = "NICE!";
           if (combo) {
             s.comboText = combo;
             s.comboAlpha = 1;
@@ -630,10 +687,19 @@ export default function CursedCourtGame() {
             s,
             s.ball.x,
             s.ball.y,
-            s.cursedActive ? "#3ab8ff" : "#ff9840",
+            cp.cursedActive ? "#3ab8ff" : "#ff9840",
             16,
           );
           s.ball = null;
+          // Switch players in 2p mode
+          if (modeRef.current === "2p") {
+            const next: 1 | 2 = s.currentPlayer === 1 ? 2 : 1;
+            const nextP = next === 1 ? s.p1 : s.p2;
+            // Skip if next player is out
+            if (nextP.misses < MAX_MISSES) {
+              s.currentPlayer = next;
+            }
+          }
           s.phase = "idle";
           syncUI();
         } else if (result === "rim") {
@@ -644,15 +710,43 @@ export default function CursedCourtGame() {
           s.ball.x < -20 ||
           s.ball.y > COURT_H + 20
         ) {
-          // Miss
-          s.streak = 0;
-          s.misses += 1;
+          cp.streak = 0;
+          cp.misses += 1;
           s.ball = null;
-          if (s.misses >= MAX_MISSES) {
-            s.phase = "gameover";
-            setGameOver(true);
+
+          if (modeRef.current === "1p") {
+            if (cp.misses >= MAX_MISSES) {
+              s.phase = "gameover";
+              setUi((prev) => ({
+                ...prev,
+                gameOver: true,
+                p1Score: s.p1.score,
+              }));
+            } else {
+              s.phase = "idle";
+            }
           } else {
-            s.phase = "idle";
+            // 2p mode
+            const bothOut =
+              s.p1.misses >= MAX_MISSES && s.p2.misses >= MAX_MISSES;
+            if (bothOut) {
+              s.phase = "gameover";
+              setUi((prev) => ({
+                ...prev,
+                gameOver: true,
+                p1Score: s.p1.score,
+                p2Score: s.p2.score,
+              }));
+            } else {
+              // Switch to the other player if they still have misses left
+              const next: 1 | 2 = s.currentPlayer === 1 ? 2 : 1;
+              const nextP = next === 1 ? s.p1 : s.p2;
+              if (nextP.misses < MAX_MISSES) {
+                s.currentPlayer = next;
+              }
+              // else stay on current player (they might still have shots)
+              s.phase = "idle";
+            }
           }
           syncUI();
         }
@@ -673,8 +767,24 @@ export default function CursedCourtGame() {
       ctx.globalAlpha = 1;
       ctx.restore();
 
+      // Turn banner in 2p mode
+      if (gameStarted && !gameOver && modeRef.current === "2p") {
+        const bannerColor = s.currentPlayer === 1 ? "#3ab8ff" : "#c084fc";
+        const bannerText =
+          s.currentPlayer === 1 ? "PLAYER 1'S TURN" : "PLAYER 2'S TURN";
+        ctx.save();
+        ctx.font = "bold 18px 'Cinzel', serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = bannerColor;
+        ctx.shadowColor = bannerColor;
+        ctx.shadowBlur = 14;
+        ctx.fillText(bannerText, COURT_W / 2, 28);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+
       // Hoop
-      drawHoop(ctx, s.hoopY, s.cursedActive);
+      drawHoop(ctx, s.hoopY, cp.cursedActive);
 
       // Aim arc
       if (
@@ -682,17 +792,16 @@ export default function CursedCourtGame() {
         !gameOver &&
         (s.phase === "idle" || s.phase === "aim")
       ) {
-        const start = getAimBall(s);
+        const start = getAimBall();
         drawAimArc(ctx, start.x, start.y, s.mouseX, s.mouseY);
       }
 
-      // Ball in flight
+      // Ball
       if (s.ball) {
-        drawBall(ctx, s.ball.x, s.ball.y, s.cursedActive, spinRef.current);
+        drawBall(ctx, s.ball.x, s.ball.y, cp.cursedActive, spinRef.current);
       } else if (gameStarted && !gameOver) {
-        // Ball at player
-        const pos = getAimBall(s);
-        drawBall(ctx, pos.x, pos.y, s.cursedActive, spinRef.current);
+        const pos = getAimBall();
+        drawBall(ctx, pos.x, pos.y, cp.cursedActive, spinRef.current);
       }
 
       // Player
@@ -726,9 +835,9 @@ export default function CursedCourtGame() {
         ctx.restore();
       }
 
-      // Streak multiplier display
-      if (gameStarted && !gameOver && s.streak >= 3) {
-        const mult = s.streak >= 5 ? 3 : 2;
+      // Streak multiplier
+      if (gameStarted && !gameOver && cp.streak >= 3) {
+        const mult = cp.streak >= 5 ? 3 : 2;
         ctx.save();
         ctx.font = "bold 16px 'Cinzel', serif";
         ctx.textAlign = "left";
@@ -740,7 +849,7 @@ export default function CursedCourtGame() {
       }
 
       // Cursed energy slow flash
-      if (s.cursedActive && s.cursedTimer > 0) {
+      if (cp.cursedActive && cp.cursedTimer > 0) {
         const pulse = 0.05 + 0.05 * Math.sin(s.frameCount * 0.3);
         ctx.save();
         ctx.globalAlpha = pulse;
@@ -755,9 +864,29 @@ export default function CursedCourtGame() {
 
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
-  }, [gameStarted, gameOver, syncUI]);
+  }, [ui.gameStarted, ui.gameOver, syncUI]);
 
-  const multiplier = uiStreak >= 5 ? 3 : uiStreak >= 3 ? 2 : 1;
+  const is2p = ui.mode === "2p";
+  const cpColor = ui.currentPlayer === 1 ? "#3ab8ff" : "#c084fc";
+  const multiplier = ui.streak >= 5 ? 3 : ui.streak >= 3 ? 2 : 1;
+
+  // Winner calc for game over in 2p
+  const p1Final = stateRef.current.p1.score;
+  const p2Final = stateRef.current.p2.score;
+  let winnerText = "";
+  let winnerColor = "#ffdd44";
+  if (ui.gameOver && is2p) {
+    if (p1Final > p2Final) {
+      winnerText = "PLAYER 1 WINS!";
+      winnerColor = "#3ab8ff";
+    } else if (p2Final > p1Final) {
+      winnerText = "PLAYER 2 WINS!";
+      winnerColor = "#c084fc";
+    } else {
+      winnerText = "TIE!";
+      winnerColor = "#ffdd44";
+    }
+  }
 
   return (
     <div
@@ -765,113 +894,301 @@ export default function CursedCourtGame() {
       style={{ fontFamily: "'Cinzel', serif" }}
     >
       {/* HUD */}
-      {gameStarted && !gameOver && (
+      {ui.gameStarted && !ui.gameOver && (
         <div className="flex items-center justify-between w-full max-w-3xl px-2">
-          {/* Score */}
-          <div className="flex flex-col items-center">
-            <span
-              style={{ color: "#3ab8ff", fontSize: 11, letterSpacing: "0.2em" }}
-            >
-              SCORE
-            </span>
-            <span
-              style={{
-                color: "#fff",
-                fontSize: 28,
-                fontWeight: 900,
-                textShadow: "0 0 12px #3ab8ff",
-              }}
-            >
-              {uiScore}
-            </span>
-          </div>
-          {/* Streak */}
-          <div className="flex flex-col items-center">
-            <span
-              style={{ color: "#ffdd44", fontSize: 11, letterSpacing: "0.2em" }}
-            >
-              STREAK
-            </span>
-            <span style={{ color: "#ffdd44", fontSize: 22, fontWeight: 700 }}>
-              {uiStreak}
-              {uiStreak >= 3 ? ` x${multiplier}` : ""}
-            </span>
-          </div>
-          {/* Misses */}
-          <div
-            className="flex flex-col items-center"
-            data-ocid="basketball.error_state"
-          >
-            <span
-              style={{ color: "#ff4444", fontSize: 11, letterSpacing: "0.2em" }}
-            >
-              MISSES
-            </span>
-            <div className="flex gap-1">
-              {["miss-a", "miss-b", "miss-c"].map((k, i) => (
-                <span key={k} style={{ fontSize: 20 }}>
-                  {i < uiMisses ? "💀" : "❤️"}
-                </span>
-              ))}
-            </div>
-          </div>
-          {/* Cursed Energy */}
-          <div className="flex flex-col items-center gap-1">
-            <span
-              style={{ color: "#3ab8ff", fontSize: 11, letterSpacing: "0.2em" }}
-            >
-              CURSED ENERGY
-            </span>
-            <div className="flex gap-1">
-              {["f1", "f2", "f3", "f4", "f5"].map((k, i) => (
-                <div
-                  key={k}
+          {/* 2P: show both scores; 1P: show single score */}
+          {is2p ? (
+            <>
+              <div className="flex flex-col items-center">
+                <span
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    background:
-                      i < uiCursedFills
-                        ? uiCursedActive
-                          ? "#3ab8ff"
-                          : "#1a5fcc"
-                        : "#1a1a2e",
-                    border: "1.5px solid #3ab8ff",
-                    boxShadow: i < uiCursedFills ? "0 0 8px #3ab8ff" : "none",
+                    color: "#3ab8ff",
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
                   }}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={activateCursed}
-              disabled={uiCursedFills < CURSED_FILLS || uiCursedActive}
-              data-ocid="basketball.primary_button"
-              style={{
-                fontSize: 10,
-                letterSpacing: "0.15em",
-                padding: "3px 10px",
-                borderRadius: 4,
-                border: "1.5px solid #3ab8ff",
-                background:
-                  uiCursedFills >= CURSED_FILLS && !uiCursedActive
-                    ? "rgba(30,100,255,0.35)"
-                    : "rgba(10,10,30,0.6)",
-                color:
-                  uiCursedFills >= CURSED_FILLS && !uiCursedActive
-                    ? "#3ab8ff"
-                    : "#336",
-                cursor:
-                  uiCursedFills >= CURSED_FILLS && !uiCursedActive
-                    ? "pointer"
-                    : "not-allowed",
-                transition: "all 0.2s",
-                boxShadow: uiCursedActive ? "0 0 12px #3ab8ff" : "none",
-              }}
-            >
-              {uiCursedActive ? "ACTIVE" : "ACTIVATE"}
-            </button>
-          </div>
+                >
+                  P1 SCORE
+                </span>
+                <span
+                  style={{
+                    color: "#3ab8ff",
+                    fontSize: 24,
+                    fontWeight: 900,
+                    textShadow: "0 0 10px #3ab8ff",
+                  }}
+                >
+                  {ui.p1Score}
+                </span>
+                <span
+                  style={{
+                    color: "#00E5FF",
+                    fontSize: 9,
+                    fontFamily: "Orbitron, monospace",
+                    opacity: 0.8,
+                  }}
+                >
+                  WINS: {p1Wins}
+                </span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span
+                  style={{
+                    color: cpColor,
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  STREAK
+                </span>
+                <span style={{ color: cpColor, fontSize: 20, fontWeight: 700 }}>
+                  {ui.streak}
+                  {ui.streak >= 3 ? ` x${multiplier}` : ""}
+                </span>
+              </div>
+              <div
+                className="flex flex-col items-center"
+                data-ocid="basketball.error_state"
+              >
+                <span
+                  style={{
+                    color: "#ff4444",
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  MISSES
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: MAX_MISSES }, (_, i) => (
+                    <span
+                      key={["m0", "m1", "m2", "m3", "m4"][i]}
+                      style={{ fontSize: 16 }}
+                    >
+                      {i < ui.misses ? "💀" : "❤️"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span
+                  style={{
+                    color: cpColor,
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  CURSED ENERGY
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: CURSED_FILLS }, (_, i) => (
+                    <div
+                      key={["c0", "c1", "c2", "c3", "c4"][i]}
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background:
+                          i < ui.cursedFills
+                            ? ui.cursedActive
+                              ? cpColor
+                              : "#1a5fcc"
+                            : "#1a1a2e",
+                        border: `1.5px solid ${cpColor}`,
+                        boxShadow:
+                          i < ui.cursedFills ? `0 0 8px ${cpColor}` : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={activateCursed}
+                  disabled={ui.cursedFills < CURSED_FILLS || ui.cursedActive}
+                  data-ocid="basketball.primary_button"
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.1em",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    border: `1.5px solid ${cpColor}`,
+                    background:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? "rgba(30,100,255,0.35)"
+                        : "rgba(10,10,30,0.6)",
+                    color:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? cpColor
+                        : "#336",
+                    cursor:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? "pointer"
+                        : "not-allowed",
+                    transition: "all 0.2s",
+                    boxShadow: ui.cursedActive ? `0 0 12px ${cpColor}` : "none",
+                  }}
+                >
+                  {ui.cursedActive ? "ACTIVE" : "ACTIVATE"}
+                </button>
+              </div>
+              <div className="flex flex-col items-center">
+                <span
+                  style={{
+                    color: "#c084fc",
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  P2 SCORE
+                </span>
+                <span
+                  style={{
+                    color: "#c084fc",
+                    fontSize: 24,
+                    fontWeight: 900,
+                    textShadow: "0 0 10px #c084fc",
+                  }}
+                >
+                  {ui.p2Score}
+                </span>
+                <span
+                  style={{
+                    color: "#FF2D78",
+                    fontSize: 9,
+                    fontFamily: "Orbitron, monospace",
+                    opacity: 0.8,
+                  }}
+                >
+                  WINS: {p2Wins}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col items-center">
+                <span
+                  style={{
+                    color: "#3ab8ff",
+                    fontSize: 11,
+                    letterSpacing: "0.2em",
+                  }}
+                >
+                  SCORE
+                </span>
+                <span
+                  style={{
+                    color: "#fff",
+                    fontSize: 28,
+                    fontWeight: 900,
+                    textShadow: "0 0 12px #3ab8ff",
+                  }}
+                >
+                  {ui.score}
+                </span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span
+                  style={{
+                    color: "#ffdd44",
+                    fontSize: 11,
+                    letterSpacing: "0.2em",
+                  }}
+                >
+                  STREAK
+                </span>
+                <span
+                  style={{ color: "#ffdd44", fontSize: 22, fontWeight: 700 }}
+                >
+                  {ui.streak}
+                  {ui.streak >= 3 ? ` x${multiplier}` : ""}
+                </span>
+              </div>
+              <div
+                className="flex flex-col items-center"
+                data-ocid="basketball.error_state"
+              >
+                <span
+                  style={{
+                    color: "#ff4444",
+                    fontSize: 11,
+                    letterSpacing: "0.2em",
+                  }}
+                >
+                  MISSES
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: MAX_MISSES }, (_, i) => (
+                    <span
+                      key={["m0", "m1", "m2", "m3", "m4"][i]}
+                      style={{ fontSize: 18 }}
+                    >
+                      {i < ui.misses ? "💀" : "❤️"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span
+                  style={{
+                    color: "#3ab8ff",
+                    fontSize: 11,
+                    letterSpacing: "0.2em",
+                  }}
+                >
+                  CURSED ENERGY
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: CURSED_FILLS }, (_, i) => (
+                    <div
+                      key={["c0", "c1", "c2", "c3", "c4"][i]}
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background:
+                          i < ui.cursedFills
+                            ? ui.cursedActive
+                              ? "#3ab8ff"
+                              : "#1a5fcc"
+                            : "#1a1a2e",
+                        border: "1.5px solid #3ab8ff",
+                        boxShadow:
+                          i < ui.cursedFills ? "0 0 8px #3ab8ff" : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={activateCursed}
+                  disabled={ui.cursedFills < CURSED_FILLS || ui.cursedActive}
+                  data-ocid="basketball.primary_button"
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.15em",
+                    padding: "3px 10px",
+                    borderRadius: 4,
+                    border: "1.5px solid #3ab8ff",
+                    background:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? "rgba(30,100,255,0.35)"
+                        : "rgba(10,10,30,0.6)",
+                    color:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? "#3ab8ff"
+                        : "#336",
+                    cursor:
+                      ui.cursedFills >= CURSED_FILLS && !ui.cursedActive
+                        ? "pointer"
+                        : "not-allowed",
+                    transition: "all 0.2s",
+                    boxShadow: ui.cursedActive ? "0 0 12px #3ab8ff" : "none",
+                  }}
+                >
+                  {ui.cursedActive ? "ACTIVE" : "ACTIVATE"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -892,14 +1209,14 @@ export default function CursedCourtGame() {
             border: "2px solid rgba(58,136,255,0.35)",
             boxShadow:
               "0 0 30px rgba(30,80,255,0.25), 0 0 60px rgba(30,80,255,0.1)",
-            cursor: gameStarted && !gameOver ? "crosshair" : "default",
+            cursor: ui.gameStarted && !ui.gameOver ? "crosshair" : "default",
             display: "block",
             background: "#050510",
           }}
         />
 
-        {/* Start overlay */}
-        {!gameStarted && (
+        {/* Mode select overlay */}
+        {!ui.gameStarted && (
           <div
             style={{
               position: "absolute",
@@ -925,41 +1242,69 @@ export default function CursedCourtGame() {
               🏀 CURSED COURT
             </div>
             <div
+              style={{ color: "#aaa", fontSize: 14, letterSpacing: "0.2em" }}
+            >
+              CHOOSE YOUR BATTLE
+            </div>
+            <div
               style={{
-                color: "#aaa",
-                fontSize: 13,
+                color: "rgba(150,180,255,0.6)",
+                fontSize: 12,
                 textAlign: "center",
                 maxWidth: 340,
                 lineHeight: 1.6,
               }}
             >
               Click to aim and shoot. Fill your cursed energy meter to slow the
-              hoop. 3 misses and it's game over.
+              hoop. {MAX_MISSES} misses and it's game over.
             </div>
-            <button
-              type="button"
-              onClick={startGame}
-              data-ocid="basketball.primary_button"
-              style={{
-                padding: "12px 36px",
-                fontSize: 14,
-                letterSpacing: "0.3em",
-                fontWeight: 700,
-                borderRadius: 6,
-                border: "2px solid #3ab8ff",
-                background: "rgba(30,80,200,0.3)",
-                color: "#3ab8ff",
-                cursor: "pointer",
-                boxShadow: "0 0 18px rgba(58,136,255,0.4)",
-              }}
-            >
-              ENTER DOMAIN
-            </button>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => startWithMode("1p")}
+                data-ocid="basketball.primary_button"
+                style={{
+                  padding: "12px 32px",
+                  fontSize: 14,
+                  letterSpacing: "0.25em",
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  border: "2px solid #3ab8ff",
+                  background: "rgba(30,80,200,0.3)",
+                  color: "#3ab8ff",
+                  cursor: "pointer",
+                  boxShadow: "0 0 18px rgba(58,136,255,0.4)",
+                  transition: "all 0.2s",
+                }}
+              >
+                1 PLAYER
+              </button>
+              <button
+                type="button"
+                onClick={() => startWithMode("2p")}
+                data-ocid="basketball.secondary_button"
+                style={{
+                  padding: "12px 32px",
+                  fontSize: 14,
+                  letterSpacing: "0.25em",
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  border: "2px solid #c084fc",
+                  background: "rgba(140,50,220,0.25)",
+                  color: "#c084fc",
+                  cursor: "pointer",
+                  boxShadow: "0 0 18px rgba(192,132,252,0.35)",
+                  transition: "all 0.2s",
+                }}
+              >
+                2 PLAYERS
+              </button>
+            </div>
           </div>
         )}
 
         {/* Game over overlay */}
-        {gameOver && (
+        {ui.gameOver && (
           <div
             data-ocid="basketball.modal"
             style={{
@@ -985,45 +1330,101 @@ export default function CursedCourtGame() {
             >
               DOMAIN COLLAPSED
             </div>
-            <div style={{ color: "#aaa", fontSize: 13 }}>
-              3 misses — your cursed technique failed.
-            </div>
-            <div
+            {is2p ? (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 32,
+                    fontSize: 20,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span
+                    style={{ color: "#3ab8ff", textShadow: "0 0 10px #3ab8ff" }}
+                  >
+                    P1: {p1Final}
+                  </span>
+                  <span style={{ color: "#aaa" }}>vs</span>
+                  <span
+                    style={{ color: "#c084fc", textShadow: "0 0 10px #c084fc" }}
+                  >
+                    P2: {p2Final}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    color: winnerColor,
+                    fontSize: 28,
+                    fontWeight: 900,
+                    textShadow: `0 0 16px ${winnerColor}`,
+                  }}
+                >
+                  {winnerText}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 24,
+                    fontSize: 13,
+                    fontFamily: "Orbitron, monospace",
+                    letterSpacing: "0.12em",
+                    marginTop: 4,
+                  }}
+                >
+                  <span
+                    style={{ color: "#00E5FF", textShadow: "0 0 8px #00E5FF" }}
+                  >
+                    P1 WINS: {p1Wins}
+                  </span>
+                  <span
+                    style={{ color: "#FF2D78", textShadow: "0 0 8px #FF2D78" }}
+                  >
+                    P2 WINS: {p2Wins}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ color: "#aaa", fontSize: 13 }}>
+                  {MAX_MISSES} misses — your cursed technique failed.
+                </div>
+                <div
+                  style={{
+                    color: "#3ab8ff",
+                    fontSize: 28,
+                    fontWeight: 900,
+                    textShadow: "0 0 16px #3ab8ff",
+                  }}
+                >
+                  FINAL SCORE: {ui.p1Score}
+                </div>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={restartGame}
+              data-ocid="basketball.confirm_button"
               style={{
+                padding: "10px 28px",
+                fontSize: 12,
+                letterSpacing: "0.25em",
+                fontWeight: 700,
+                borderRadius: 6,
+                border: "2px solid #3ab8ff",
+                background: "rgba(30,80,200,0.3)",
                 color: "#3ab8ff",
-                fontSize: 28,
-                fontWeight: 900,
-                textShadow: "0 0 16px #3ab8ff",
+                cursor: "pointer",
               }}
             >
-              FINAL SCORE: {uiScore}
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={restartGame}
-                data-ocid="basketball.confirm_button"
-                style={{
-                  padding: "10px 28px",
-                  fontSize: 12,
-                  letterSpacing: "0.25em",
-                  fontWeight: 700,
-                  borderRadius: 6,
-                  border: "2px solid #3ab8ff",
-                  background: "rgba(30,80,200,0.3)",
-                  color: "#3ab8ff",
-                  cursor: "pointer",
-                }}
-              >
-                PLAY AGAIN
-              </button>
-            </div>
+              PLAY AGAIN
+            </button>
           </div>
         )}
       </div>
 
       {/* Instructions */}
-      {gameStarted && !gameOver && (
+      {ui.gameStarted && !ui.gameOver && (
         <div
           style={{
             color: "rgba(100,150,255,0.5)",
@@ -1032,7 +1433,8 @@ export default function CursedCourtGame() {
             textAlign: "center",
           }}
         >
-          CLICK TO AIM & SHOOT &nbsp;|&nbsp; FILL CURSED ENERGY TO SLOW THE HOOP
+          CLICK TO AIM &amp; SHOOT &nbsp;|&nbsp; FILL CURSED ENERGY TO SLOW THE
+          HOOP
         </div>
       )}
     </div>
