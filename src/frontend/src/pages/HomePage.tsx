@@ -114,26 +114,55 @@ const GAMES = [
     tag: "HORROR",
     tagColor: "jjk-red",
   },
+  {
+    id: "survival",
+    title: "CURSED SURVIVAL",
+    description:
+      "Endless waves of cursed spirits close in from all sides. Move, dodge, shoot, and survive as long as you can!",
+    image: "/assets/generated/game-survival.dim_400x240.jpg",
+    tag: "SURVIVAL",
+    tagColor: "jjk-blue",
+  },
+  {
+    id: "jjkbattle",
+    title: "CURSED CLASH",
+    description:
+      "Choose your sorcerer and unleash devastating cursed techniques. Gojo, Yuji, Megumi, Nobara, or Sukuna — who reigns supreme?",
+    image: "/assets/generated/game-jjkbattle.dim_400x240.jpg",
+    tag: "BATTLE",
+    tagColor: "jjk-red",
+  },
+  {
+    id: "basketball",
+    title: "CURSED COURT",
+    description:
+      "Shoot the glowing cursed basketball through the moving hoop. Fill your cursed energy to slow the rim and chain combos!",
+    image: "/assets/generated/game-basketball.dim_400x240.jpg",
+    tag: "SPORTS",
+    tagColor: "jjk-blue",
+  },
 ];
 
 const NEWEST_ARRIVALS = [
   {
-    kanji: "呪",
+    kanji: "\u95d8",
+    title: "Cursed Clash",
+    description:
+      "Pick your sorcerer, choose your techniques, battle for supremacy!",
+    badge: "NEW",
+  },
+  {
+    kanji: "\u751f",
+    title: "Cursed Survival",
+    description:
+      "Wave-based top-down survival -- dodge and exorcise endless cursed spirits!",
+    badge: "NEW",
+  },
+  {
+    kanji: "\u546a",
     title: "Survive The Night",
     description:
       "Aim your cursed energy and banish spirits before they reach you!",
-    badge: "NEW",
-  },
-  {
-    kanji: "術",
-    title: "Pong — Cursed Duel",
-    description: "Classic paddle battle infused with cursed energy physics",
-    badge: "NEW",
-  },
-  {
-    kanji: "廻",
-    title: "Space Invaders",
-    description: "Waves of cursed spirits descend — exorcise them all!",
     badge: "NEW",
   },
 ];
@@ -159,7 +188,6 @@ const TAG_COLOR_MAP: Record<string, { text: string; border: string }> = {
     text: "oklch(0.75 0.22 150)",
     border: "oklch(0.75 0.22 150 / 0.5)",
   },
-  // legacy aliases
   "neon-green": {
     text: "oklch(0.75 0.22 150)",
     border: "oklch(0.75 0.22 150 / 0.5)",
@@ -186,7 +214,6 @@ const TAG_COLOR_MAP: Record<string, { text: string; border: string }> = {
   },
 };
 
-// Floating cursed particles config
 const PARTICLES = [
   {
     id: "p1",
@@ -285,24 +312,68 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      <style>{`
+        @keyframes gojoZoom {
+          0% { transform: scale(1) translateX(0); }
+          100% { transform: scale(1.08) translateX(-2%); }
+        }
+        @keyframes gojoPulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        @keyframes gojoShimmer {
+          0%, 100% { opacity: 0.3; transform: translateX(-10%) skewX(-5deg); }
+          50% { opacity: 0.6; transform: translateX(10%) skewX(5deg); }
+        }
+      `}</style>
       <Header />
 
       {/* Hero Section */}
       <section
         className="relative overflow-hidden"
-        style={{
-          minHeight: "540px",
-          background:
-            "linear-gradient(135deg, oklch(0.07 0.015 265) 0%, oklch(0.09 0.04 270) 50%, oklch(0.07 0.015 265) 100%)",
-        }}
+        style={{ minHeight: "540px" }}
       >
+        {/* Gojo animated background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img
+            src="/assets/generated/gojo-background.dim_1920x1080.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ animation: "gojoZoom 10s ease-in-out infinite alternate" }}
+          />
+          {/* Dark overlay for readability */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "oklch(0.05 0.02 265 / 0.55)" }}
+          />
+          {/* Pulsing cursed energy blue aura */}
+          <div
+            className="absolute inset-0"
+            style={{
+              animation: "gojoPulse 3.5s ease-in-out infinite",
+              background:
+                "radial-gradient(ellipse at 30% 50%, oklch(0.70 0.22 240 / 0.12), transparent 60%)",
+            }}
+          />
+          {/* Purple shimmer sweep */}
+          <div
+            className="absolute inset-0"
+            style={{
+              animation: "gojoShimmer 6s ease-in-out infinite",
+              background:
+                "linear-gradient(105deg, transparent 30%, oklch(0.65 0.22 290 / 0.08) 50%, transparent 70%)",
+            }}
+          />
+        </div>
+
         {/* Cursed seal hexagonal grid */}
-        <div className="absolute inset-0 cursed-seal-bg opacity-60" />
+        <div className="absolute inset-0 cursed-seal-bg opacity-30" />
+        {/* Vignette */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at center, transparent 40%, oklch(0.07 0.015 265) 100%)",
+              "radial-gradient(ellipse at center, transparent 40%, oklch(0.05 0.02 265 / 0.7) 100%)",
           }}
         />
 
@@ -385,7 +456,7 @@ export default function HomePage() {
               className="text-lg mb-10 max-w-xl mx-auto font-exo"
               style={{ color: "oklch(0.65 0.015 270)" }}
             >
-              12 cursed domains to conquer. Channel your inner sorcerer, battle
+              14 cursed domains to conquer. Channel your inner sorcerer, battle
               on the global leaderboard, and prove you are the supreme grade-1
               champion.
             </p>
@@ -470,7 +541,6 @@ export default function HomePage() {
                         呪
                       </span>
                     </div>
-                    {/* Overlay glow on hover */}
                     <div
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       style={{
@@ -537,8 +607,8 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-3 gap-8 text-center">
             {[
-              { value: "12", label: "CURSED DOMAINS" },
-              { value: "∞", label: "CURSED HOURS" },
+              { value: "14", label: "CURSED DOMAINS" },
+              { value: "\u221e", label: "CURSED HOURS" },
               { value: "#1", label: "DOMAIN EXPANSION" },
             ].map((stat) => (
               <div key={stat.label}>
