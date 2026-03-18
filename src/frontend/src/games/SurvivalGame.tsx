@@ -12,7 +12,7 @@ interface Player {
   maxHp: number;
   radius: number;
   speed: number;
-  iframes: number; // invincibility frames after hit
+  iframes: number;
 }
 
 interface Enemy {
@@ -23,7 +23,7 @@ interface Enemy {
   speed: number;
   radius: number;
   type: "grunt" | "fast" | "tank" | "ranged";
-  shootCd: number; // cooldown for ranged enemies
+  shootCd: number;
   dead: boolean;
 }
 
@@ -34,6 +34,7 @@ interface Projectile {
   radius: number;
   fromPlayer: boolean;
   dead: boolean;
+  piercing?: boolean;
 }
 
 interface OrbPickup {
@@ -62,18 +63,174 @@ interface GameState {
   score: number;
   enemiesLeft: number;
   orbCount: number;
-  waveTimer: number; // ticks between waves
+  waveTimer: number;
   status: "playing" | "wave_clear" | "dead";
   nextId: number;
+  // Ability stats
+  dmgMultiplier: number;
+  shootCdBase: number;
+  iframeBonus: number;
+  piercingShots: boolean;
+  orbMagnet: boolean;
+  doubleShot: boolean;
+  aoeOnKill: boolean;
+  blackFlashChance: number;
+  pickedAbilities: string[];
 }
 
 const W = 700;
 const H = 500;
 const PLAYER_SPEED = 3.2;
-const SHOOT_CD = 22; // frames between player shots
+const BASE_SHOOT_CD = 22;
 const SHOOT_SPEED = 8;
 const ORB_RADIUS = 10;
 const COLLECT_RANGE = 18;
+
+// --- JJK Ability Definitions ---
+export interface JJKAbility {
+  id: string;
+  name: string;
+  character: string;
+  description: string;
+  emoji: string;
+  color: string;
+  apply: (s: GameState) => void;
+}
+
+export const JJK_ABILITIES: JJKAbility[] = [
+  {
+    id: "infinity",
+    name: "Infinity",
+    character: "Gojo Satoru",
+    description:
+      "Cursed energy forms an infinite barrier. Invincibility frames last much longer after taking damage.",
+    emoji: "∞",
+    color: "oklch(0.70 0.22 240)",
+    apply: (s) => {
+      s.iframeBonus += 25;
+    },
+  },
+  {
+    id: "divergent_fist",
+    name: "Divergent Fist",
+    character: "Yuji Itadori",
+    description:
+      "Cursed energy lags behind physical attacks. Projectile damage increased by 60%.",
+    emoji: "👊",
+    color: "oklch(0.72 0.22 25)",
+    apply: (s) => {
+      s.dmgMultiplier *= 1.6;
+    },
+  },
+  {
+    id: "rapid_fire",
+    name: "Straw Doll: Hairpin",
+    character: "Nobara Kugisaki",
+    description: "Nails fly at cursed speed. Fire rate increased by 40%.",
+    emoji: "🔨",
+    color: "oklch(0.72 0.22 50)",
+    apply: (s) => {
+      s.shootCdBase = Math.max(6, Math.round(s.shootCdBase * 0.6));
+    },
+  },
+  {
+    id: "piercing_blood",
+    name: "Piercing Blood",
+    character: "Naoya Zenin",
+    description:
+      "Blood propelled at cursed speeds pierces through all enemies in its path.",
+    emoji: "🩸",
+    color: "oklch(0.65 0.22 15)",
+    apply: (s) => {
+      s.piercingShots = true;
+    },
+  },
+  {
+    id: "maximum_output",
+    name: "Maximum Output",
+    character: "Kento Nanami",
+    description:
+      "Push cursed energy to its absolute limit. Gain 40 max HP and fully restore health.",
+    emoji: "⚡",
+    color: "oklch(0.72 0.22 90)",
+    apply: (s) => {
+      s.player.maxHp += 40;
+      s.player.hp = Math.min(s.player.hp + 40, s.player.maxHp);
+    },
+  },
+  {
+    id: "ten_shadows",
+    name: "Ten Shadows Technique",
+    character: "Megumi Fushiguro",
+    description:
+      "Shadow shikigami emerge beside every shot. Fire two projectiles simultaneously.",
+    emoji: "🐉",
+    color: "oklch(0.65 0.22 290)",
+    apply: (s) => {
+      s.doubleShot = true;
+    },
+  },
+  {
+    id: "black_flash",
+    name: "Black Flash",
+    character: "Yuji Itadori",
+    description:
+      "When cursed energy and force align, power amplifies. 30% chance to deal 3× damage per hit.",
+    emoji: "⚫",
+    color: "oklch(0.45 0.10 260)",
+    apply: (s) => {
+      s.blackFlashChance = Math.min(0.9, s.blackFlashChance + 0.3);
+    },
+  },
+  {
+    id: "cleave",
+    name: "Cleave",
+    character: "Ryomen Sukuna",
+    description:
+      "Adaptable slashing technique. Enemies explode on death, dealing 25 damage to nearby foes.",
+    emoji: "🗡️",
+    color: "oklch(0.65 0.22 350)",
+    apply: (s) => {
+      s.aoeOnKill = true;
+    },
+  },
+  {
+    id: "blue",
+    name: "Limitless: Blue",
+    character: "Gojo Satoru",
+    description:
+      "Reverse cursed technique creates attraction. Energy orbs are pulled toward you from across the arena.",
+    emoji: "💙",
+    color: "oklch(0.70 0.22 220)",
+    apply: (s) => {
+      s.orbMagnet = true;
+    },
+  },
+  {
+    id: "ratio_technique",
+    name: "Ratio Technique",
+    character: "Kento Nanami",
+    description:
+      "Strike the 7:3 weak spot. Bonus 40% damage against all enemies.",
+    emoji: "📐",
+    color: "oklch(0.72 0.22 80)",
+    apply: (s) => {
+      s.dmgMultiplier *= 1.4;
+    },
+  },
+  {
+    id: "reverse_cursed",
+    name: "Reverse Cursed Technique",
+    character: "Gojo Satoru",
+    description:
+      "Invert cursed energy to heal wounds. Restore 30 HP whenever you collect an energy orb.",
+    emoji: "💚",
+    color: "oklch(0.70 0.22 150)",
+    apply: (_s) => {
+      /* applied in orb pickup logic via id check */
+    },
+  },
+];
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -108,14 +265,12 @@ function spawnWaveEnemies(
   for (let i = 0; i < count; i++) {
     const type =
       types[Math.floor(Math.random() * (wave >= 2 ? types.length : 2))];
-    // Spawn outside arena
     const angle = Math.random() * Math.PI * 2;
     const spawnDist = 380;
     const pos = {
       x: W / 2 + Math.cos(angle) * spawnDist,
       y: H / 2 + Math.sin(angle) * spawnDist,
     };
-    // Clamp to near-edge of canvas
     pos.x = Math.max(-30, Math.min(W + 30, pos.x));
     pos.y = Math.max(-30, Math.min(H + 30, pos.y));
 
@@ -170,7 +325,23 @@ function initGame(): GameState {
     waveTimer: 60,
     status: "playing",
     nextId: 1,
+    dmgMultiplier: 1,
+    shootCdBase: BASE_SHOOT_CD,
+    iframeBonus: 0,
+    piercingShots: false,
+    orbMagnet: false,
+    doubleShot: false,
+    aoeOnKill: false,
+    blackFlashChance: 0,
+    pickedAbilities: [],
   };
+}
+
+function pickRandomAbilities(pickedIds: string[], count = 3): JJKAbility[] {
+  const available = JJK_ABILITIES.filter((a) => !pickedIds.includes(a.id));
+  if (available.length === 0) return [];
+  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
 export default function SurvivalGame() {
@@ -180,6 +351,9 @@ export default function SurvivalGame() {
   const mouseRef = useRef<Vec2>({ x: W / 2, y: H / 2 });
   const shootCdRef = useRef(0);
   const animRef = useRef<number>(0);
+  const abilityPickerShownRef = useRef(false);
+  const pausedRef = useRef(false);
+
   const [uiState, setUiState] = useState({
     wave: 0,
     score: 0,
@@ -188,11 +362,20 @@ export default function SurvivalGame() {
     orbs: 0,
     status: "playing" as GameState["status"],
     enemiesLeft: 0,
+    pickedAbilities: [] as string[],
   });
+
+  const [showAbilityPicker, setShowAbilityPicker] = useState(false);
+  const [abilityChoices, setAbilityChoices] = useState<JJKAbility[]>([]);
+  const [hoveredAbility, setHoveredAbility] = useState<string | null>(null);
 
   const resetGame = useCallback(() => {
     stateRef.current = initGame();
     shootCdRef.current = 0;
+    abilityPickerShownRef.current = false;
+    pausedRef.current = false;
+    setShowAbilityPicker(false);
+    setAbilityChoices([]);
     setUiState({
       wave: 0,
       score: 0,
@@ -201,7 +384,35 @@ export default function SurvivalGame() {
       orbs: 0,
       status: "playing",
       enemiesLeft: 0,
+      pickedAbilities: [],
     });
+  }, []);
+
+  const handlePickAbility = useCallback((ability: JJKAbility) => {
+    const s = stateRef.current;
+    ability.apply(s);
+    s.pickedAbilities = [...s.pickedAbilities, ability.id];
+
+    // Start next wave
+    s.status = "playing";
+    s.waveTimer = 120;
+    s.wave++;
+    const result = spawnWaveEnemies(s.wave, s.nextId);
+    s.enemies = result.enemies;
+    s.nextId = result.nextId;
+    s.enemiesLeft = s.enemies.filter((e) => !e.dead).length;
+
+    abilityPickerShownRef.current = false;
+    pausedRef.current = false;
+    setShowAbilityPicker(false);
+    setAbilityChoices([]);
+    setUiState((prev) => ({
+      ...prev,
+      pickedAbilities: s.pickedAbilities,
+      wave: s.wave,
+      hp: s.player.hp,
+      maxHp: s.player.maxHp,
+    }));
   }, []);
 
   useEffect(() => {
@@ -281,7 +492,15 @@ export default function SurvivalGame() {
 
     function tick() {
       const s = stateRef.current;
+
       if (s.status === "dead") {
+        drawFrame();
+        animRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      // If paused for ability picker, just draw and wait
+      if (pausedRef.current) {
         drawFrame();
         animRef.current = requestAnimationFrame(tick);
         return;
@@ -299,8 +518,30 @@ export default function SurvivalGame() {
 
       if (s.waveTimer > 0) {
         s.waveTimer--;
-        if (s.waveTimer <= 0 && s.wave === 0) {
-          // trigger first wave on next tick
+        drawFrame();
+        animRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      // wave_clear: show ability picker instead of auto-advancing
+      if (s.status === "wave_clear" && !abilityPickerShownRef.current) {
+        abilityPickerShownRef.current = true;
+        pausedRef.current = true;
+        const choices = pickRandomAbilities(s.pickedAbilities, 3);
+        if (choices.length === 0) {
+          // No abilities left, just advance
+          pausedRef.current = false;
+          abilityPickerShownRef.current = false;
+          s.status = "playing";
+          s.waveTimer = 120;
+          s.wave++;
+          const result = spawnWaveEnemies(s.wave, s.nextId);
+          s.enemies = result.enemies;
+          s.nextId = result.nextId;
+          s.enemiesLeft = s.enemies.filter((e) => !e.dead).length;
+        } else {
+          setAbilityChoices(choices);
+          setShowAbilityPicker(true);
         }
         drawFrame();
         animRef.current = requestAnimationFrame(tick);
@@ -308,14 +549,6 @@ export default function SurvivalGame() {
       }
 
       if (s.status === "wave_clear") {
-        // brief delay then next wave
-        s.waveTimer = 120;
-        s.status = "playing";
-        s.wave++;
-        const result = spawnWaveEnemies(s.wave, s.nextId);
-        s.enemies = result.enemies;
-        s.nextId = result.nextId;
-        s.enemiesLeft = s.enemies.filter((e) => !e.dead).length;
         drawFrame();
         animRef.current = requestAnimationFrame(tick);
         return;
@@ -337,7 +570,7 @@ export default function SurvivalGame() {
       p.pos.x = Math.max(p.radius, Math.min(W - p.radius, p.pos.x + p.vel.x));
       p.pos.y = Math.max(p.radius, Math.min(H - p.radius, p.pos.y + p.vel.y));
 
-      // Player shoot toward mouse
+      // Player shoot
       if (shootCdRef.current > 0) shootCdRef.current--;
       if (shootCdRef.current === 0) {
         const dir = norm({
@@ -345,29 +578,50 @@ export default function SurvivalGame() {
           y: mouseRef.current.y - p.pos.y,
         });
         if (dir.x !== 0 || dir.y !== 0) {
-          s.projectiles.push({
-            id: s.nextId++,
-            pos: { x: p.pos.x, y: p.pos.y },
-            vel: { x: dir.x * SHOOT_SPEED, y: dir.y * SHOOT_SPEED },
-            radius: 5,
-            fromPlayer: true,
-            dead: false,
-          });
-          shootCdRef.current = SHOOT_CD;
+          const fireProj = (angle: number) => {
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            const rx = dir.x * cos - dir.y * sin;
+            const ry = dir.x * sin + dir.y * cos;
+            s.projectiles.push({
+              id: s.nextId++,
+              pos: { x: p.pos.x, y: p.pos.y },
+              vel: { x: rx * SHOOT_SPEED, y: ry * SHOOT_SPEED },
+              radius: 5,
+              fromPlayer: true,
+              dead: false,
+              piercing: s.piercingShots,
+            });
+          };
+          fireProj(0);
+          if (s.doubleShot) {
+            fireProj((10 * Math.PI) / 180);
+          }
+          shootCdRef.current = s.shootCdBase;
         }
       }
 
       // Iframes
       if (p.iframes > 0) p.iframes--;
 
+      // Orb magnet
+      if (s.orbMagnet) {
+        for (const orb of s.orbs) {
+          if (orb.dead) continue;
+          if (dist(orb.pos, p.pos) < 120) {
+            const d = norm({ x: p.pos.x - orb.pos.x, y: p.pos.y - orb.pos.y });
+            orb.pos.x += d.x * 2.5;
+            orb.pos.y += d.y * 2.5;
+          }
+        }
+      }
+
       // Update enemies
       for (const e of s.enemies) {
         if (e.dead) continue;
-        // Move toward player
         const toPlayer = norm({ x: p.pos.x - e.pos.x, y: p.pos.y - e.pos.y });
 
         if (e.type === "ranged") {
-          // Keep distance and shoot
           const d = dist(e.pos, p.pos);
           if (d < 180) {
             e.pos.x -= toPlayer.x * e.speed;
@@ -401,8 +655,8 @@ export default function SurvivalGame() {
         ) {
           const dmg = e.type === "tank" ? 20 : 10;
           p.hp -= dmg;
-          p.iframes = 45;
-          spawnParticles(p.pos, "oklch(0.65 0.22 25)", 6, 3);
+          p.iframes = 45 + s.iframeBonus;
+          spawnParticles(p.pos, "#ff4444", 6, 3);
           if (p.hp <= 0) {
             p.hp = 0;
             s.status = "dead";
@@ -415,7 +669,6 @@ export default function SurvivalGame() {
         if (proj.dead) continue;
         proj.pos.x += proj.vel.x;
         proj.pos.y += proj.vel.y;
-        // Out of bounds
         if (
           proj.pos.x < -20 ||
           proj.pos.x > W + 20 ||
@@ -429,8 +682,17 @@ export default function SurvivalGame() {
           for (const e of s.enemies) {
             if (e.dead) continue;
             if (dist(proj.pos, e.pos) < proj.radius + e.radius) {
-              proj.dead = true;
-              const dmg = 20 + s.wave * 2;
+              if (!proj.piercing) proj.dead = true;
+              let dmg = (20 + s.wave * 2) * s.dmgMultiplier;
+              // Black Flash
+              if (
+                s.blackFlashChance > 0 &&
+                Math.random() < s.blackFlashChance
+              ) {
+                dmg *= 3;
+                spawnParticles(e.pos, "#222244", 8, 4);
+                spawnParticles(e.pos, "#8888ff", 5, 6);
+              }
               e.hp -= dmg;
               spawnParticles(e.pos, typeColor(e.type), 5, 2.5);
               if (e.hp <= 0) {
@@ -438,7 +700,25 @@ export default function SurvivalGame() {
                 s.score +=
                   e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
                 spawnParticles(e.pos, typeColor(e.type), 12, 4);
-                // Drop orb
+                // AoE on kill
+                if (s.aoeOnKill) {
+                  for (const ne of s.enemies) {
+                    if (ne.dead || ne.id === e.id) continue;
+                    if (dist(ne.pos, e.pos) < 60) {
+                      ne.hp -= 25;
+                      spawnParticles(ne.pos, "#ff6600", 4, 3);
+                      if (ne.hp <= 0) {
+                        ne.dead = true;
+                        s.score +=
+                          ne.type === "tank"
+                            ? 30
+                            : ne.type === "ranged"
+                              ? 20
+                              : 10;
+                      }
+                    }
+                  }
+                }
                 if (Math.random() < 0.4) {
                   s.orbs.push({
                     id: s.nextId++,
@@ -447,19 +727,19 @@ export default function SurvivalGame() {
                   });
                 }
               }
+              if (proj.piercing) continue;
               break;
             }
           }
         } else {
-          // Enemy projectile hits player
           if (
             dist(proj.pos, p.pos) < proj.radius + p.radius &&
             p.iframes === 0
           ) {
             proj.dead = true;
             p.hp -= 12;
-            p.iframes = 30;
-            spawnParticles(p.pos, "oklch(0.65 0.22 25)", 6, 3);
+            p.iframes = 30 + s.iframeBonus;
+            spawnParticles(p.pos, "#ff4444", 6, 3);
             if (p.hp <= 0) {
               p.hp = 0;
               s.status = "dead";
@@ -475,7 +755,11 @@ export default function SurvivalGame() {
           orb.dead = true;
           s.orbCount++;
           s.score += 5;
-          spawnParticles(orb.pos, "oklch(0.70 0.22 240)", 8, 2);
+          spawnParticles(orb.pos, "#4499ff", 8, 2);
+          // Reverse Cursed Technique healing
+          if (s.pickedAbilities.includes("reverse_cursed")) {
+            p.hp = Math.min(p.maxHp, p.hp + 30);
+          }
         }
       }
 
@@ -489,22 +773,20 @@ export default function SurvivalGame() {
       }
 
       // Cleanup
-      s.projectiles = s.projectiles.filter((p) => !p.dead);
+      s.projectiles = s.projectiles.filter((pr) => !pr.dead);
       s.orbs = s.orbs.filter((o) => !o.dead);
-      s.particles = s.particles.filter((p) => p.life > 0);
-      s.enemies = s.enemies.filter((e) => {
-        // Remove enemies far out of bounds
-        if (e.dead && !s.particles.some((p) => dist(p.pos, e.pos) < 1))
+      s.particles = s.particles.filter((pt) => pt.life > 0);
+      s.enemies = s.enemies.filter((en) => {
+        if (en.dead && !s.particles.some((pt) => dist(pt.pos, en.pos) < 1))
           return false;
         return true;
       });
 
-      const alive = s.enemies.filter((e) => !e.dead);
+      const alive = s.enemies.filter((en) => !en.dead);
       s.enemiesLeft = alive.length;
 
       if (alive.length === 0 && s.status === "playing") {
         s.status = "wave_clear";
-        s.waveTimer = 120;
       }
 
       drawFrame();
@@ -516,6 +798,7 @@ export default function SurvivalGame() {
         orbs: s.orbCount,
         status: s.status,
         enemiesLeft: s.enemiesLeft,
+        pickedAbilities: s.pickedAbilities,
       });
       animRef.current = requestAnimationFrame(tick);
     }
@@ -523,13 +806,13 @@ export default function SurvivalGame() {
     function typeColor(type: Enemy["type"]) {
       switch (type) {
         case "fast":
-          return "oklch(0.65 0.22 150)";
+          return "#22cc66";
         case "tank":
-          return "oklch(0.65 0.22 50)";
+          return "#ff9933";
         case "ranged":
-          return "oklch(0.65 0.22 290)";
+          return "#aa44ff";
         default:
-          return "oklch(0.65 0.22 25)";
+          return "#ff4422";
       }
     }
 
@@ -538,12 +821,11 @@ export default function SurvivalGame() {
       const s = stateRef.current;
       const p = s.player;
 
-      // Background
       ctx.fillStyle = "#050508";
       ctx.fillRect(0, 0, W, H);
 
-      // Grid lines
-      ctx.strokeStyle = "oklch(0.70 0.22 240 / 0.07)";
+      // Grid
+      ctx.strokeStyle = "rgba(80,140,255,0.07)";
       ctx.lineWidth = 1;
       for (let x = 0; x < W; x += 40) {
         ctx.beginPath();
@@ -559,7 +841,7 @@ export default function SurvivalGame() {
       }
 
       // Arena boundary
-      ctx.strokeStyle = "oklch(0.70 0.22 240 / 0.4)";
+      ctx.strokeStyle = "rgba(80,140,255,0.4)";
       ctx.lineWidth = 2;
       ctx.strokeRect(2, 2, W - 4, H - 4);
 
@@ -578,8 +860,8 @@ export default function SurvivalGame() {
       for (const orb of s.orbs) {
         if (orb.dead) continue;
         ctx.shadowBlur = 12;
-        ctx.shadowColor = "oklch(0.70 0.22 240)";
-        ctx.fillStyle = "oklch(0.80 0.22 240)";
+        ctx.shadowColor = "#4499ff";
+        ctx.fillStyle = "#88ccff";
         ctx.beginPath();
         ctx.arc(orb.pos.x, orb.pos.y, ORB_RADIUS, 0, Math.PI * 2);
         ctx.fill();
@@ -590,8 +872,8 @@ export default function SurvivalGame() {
       for (const proj of s.projectiles) {
         if (proj.dead || proj.fromPlayer) continue;
         ctx.shadowBlur = 10;
-        ctx.shadowColor = "oklch(0.65 0.22 290)";
-        ctx.fillStyle = "oklch(0.75 0.22 290)";
+        ctx.shadowColor = "#aa44ff";
+        ctx.fillStyle = "#cc88ff";
         ctx.beginPath();
         ctx.arc(proj.pos.x, proj.pos.y, proj.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -602,14 +884,13 @@ export default function SurvivalGame() {
       for (const proj of s.projectiles) {
         if (proj.dead || !proj.fromPlayer) continue;
         ctx.shadowBlur = 14;
-        ctx.shadowColor = "oklch(0.70 0.22 240)";
-        ctx.fillStyle = "oklch(0.90 0.22 240)";
+        ctx.shadowColor = proj.piercing ? "#ff4488" : "#4499ff";
+        ctx.fillStyle = proj.piercing ? "#ff88bb" : "#88ccff";
         ctx.beginPath();
         ctx.arc(proj.pos.x, proj.pos.y, proj.radius, 0, Math.PI * 2);
         ctx.fill();
-        // Tail
         ctx.globalAlpha = 0.4;
-        ctx.fillStyle = "oklch(0.70 0.22 240)";
+        ctx.fillStyle = proj.piercing ? "#ff4488" : "#4499ff";
         ctx.beginPath();
         ctx.arc(
           proj.pos.x - proj.vel.x * 1.5,
@@ -632,14 +913,12 @@ export default function SurvivalGame() {
         ctx.fillStyle = color;
         ctx.beginPath();
         if (e.type === "tank") {
-          // Square-ish
           ctx.save();
           ctx.translate(e.pos.x, e.pos.y);
           ctx.rotate(Date.now() * 0.001);
           ctx.fillRect(-e.radius, -e.radius, e.radius * 2, e.radius * 2);
           ctx.restore();
         } else if (e.type === "fast") {
-          // Triangle
           const dir = norm({ x: p.pos.x - e.pos.x, y: p.pos.y - e.pos.y });
           const perp = { x: -dir.y, y: dir.x };
           ctx.save();
@@ -673,19 +952,16 @@ export default function SurvivalGame() {
       const pFlash = p.iframes > 0 && Math.floor(p.iframes / 4) % 2 === 0;
       if (!pFlash) {
         ctx.shadowBlur = 20;
-        ctx.shadowColor = "oklch(0.70 0.22 240)";
-        // Outer ring
-        ctx.strokeStyle = "oklch(0.70 0.22 240)";
+        ctx.shadowColor = "#4499ff";
+        ctx.strokeStyle = "#4499ff";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(p.pos.x, p.pos.y, p.radius + 4, 0, Math.PI * 2);
         ctx.stroke();
-        // Body
-        ctx.fillStyle = "oklch(0.85 0.22 240)";
+        ctx.fillStyle = "#88ccff";
         ctx.beginPath();
         ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
-        // Cross mark
         ctx.strokeStyle = "#050508";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -697,10 +973,10 @@ export default function SurvivalGame() {
         ctx.shadowBlur = 0;
       }
 
-      // Aim line from player to mouse
+      // Aim line
       const mouse = mouseRef.current;
       const aimDir = norm({ x: mouse.x - p.pos.x, y: mouse.y - p.pos.y });
-      ctx.strokeStyle = "oklch(0.70 0.22 240 / 0.3)";
+      ctx.strokeStyle = "rgba(80,140,255,0.3)";
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 6]);
       ctx.beginPath();
@@ -714,35 +990,35 @@ export default function SurvivalGame() {
 
       // Wave start overlay
       if (s.waveTimer > 0 && s.wave > 0) {
-        ctx.fillStyle = "oklch(0.70 0.22 240 / 0.12)";
+        ctx.fillStyle = "rgba(40,80,200,0.12)";
         ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = "oklch(0.70 0.22 240)";
+        ctx.fillStyle = "#88ccff";
         ctx.font = "bold 22px 'Cinzel', serif";
         ctx.textAlign = "center";
         ctx.shadowBlur = 20;
-        ctx.shadowColor = "oklch(0.70 0.22 240)";
+        ctx.shadowColor = "#4499ff";
         ctx.fillText(`WAVE ${s.wave}`, W / 2, H / 2);
         ctx.shadowBlur = 0;
         ctx.font = "14px 'Exo 2', sans-serif";
-        ctx.fillStyle = "oklch(0.75 0.01 265)";
+        ctx.fillStyle = "#8899bb";
         ctx.fillText("Survive the cursed spirits", W / 2, H / 2 + 30);
         ctx.textAlign = "left";
       }
 
-      // Wave clear overlay
-      if (s.status === "wave_clear" && s.waveTimer <= 0) {
-        ctx.fillStyle = "oklch(0.65 0.22 150 / 0.12)";
+      // Wave clear overlay (shown while paused for ability picker)
+      if (s.status === "wave_clear" && pausedRef.current) {
+        ctx.fillStyle = "rgba(0,40,20,0.18)";
         ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = "oklch(0.75 0.22 150)";
+        ctx.fillStyle = "#44ff88";
         ctx.font = "bold 26px 'Cinzel', serif";
         ctx.textAlign = "center";
         ctx.shadowBlur = 20;
-        ctx.shadowColor = "oklch(0.75 0.22 150)";
+        ctx.shadowColor = "#44ff88";
         ctx.fillText("WAVE CLEARED!", W / 2, H / 2);
         ctx.shadowBlur = 0;
-        ctx.fillStyle = "oklch(0.65 0.015 270)";
+        ctx.fillStyle = "#8899bb";
         ctx.font = "14px 'Exo 2', sans-serif";
-        ctx.fillText("Preparing next wave...", W / 2, H / 2 + 30);
+        ctx.fillText("Choose your technique...", W / 2, H / 2 + 30);
         ctx.textAlign = "left";
       }
     }
@@ -751,7 +1027,13 @@ export default function SurvivalGame() {
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
-  const { wave, score, hp, maxHp, orbs, status, enemiesLeft } = uiState;
+  const { wave, score, hp, maxHp, orbs, status, enemiesLeft, pickedAbilities } =
+    uiState;
+
+  // Get full ability objects for picked abilities
+  const pickedAbilityObjects = pickedAbilities
+    .map((id) => JJK_ABILITIES.find((a) => a.id === id))
+    .filter(Boolean) as JJKAbility[];
 
   return (
     <div
@@ -762,6 +1044,22 @@ export default function SurvivalGame() {
         @keyframes survivalPulse {
           0%, 100% { box-shadow: 0 0 10px oklch(0.70 0.22 240 / 0.4); }
           50% { box-shadow: 0 0 25px oklch(0.70 0.22 240 / 0.7); }
+        }
+        @keyframes abilityCardGlow {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.15); }
+        }
+        @keyframes overlayFadeIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .ability-card {
+          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+          cursor: pointer;
+        }
+        .ability-card:hover {
+          transform: scale(1.06) translateY(-4px);
+          filter: brightness(1.18);
         }
       `}</style>
 
@@ -853,7 +1151,45 @@ export default function SurvivalGame() {
         </span>
       </div>
 
-      {/* Canvas */}
+      {/* Active Abilities Row */}
+      {pickedAbilityObjects.length > 0 && (
+        <div className="w-full max-w-[700px] flex flex-wrap gap-2 px-1">
+          <span
+            className="font-cinzel text-[10px] tracking-widest self-center"
+            style={{ color: "oklch(0.70 0.22 240)" }}
+          >
+            TECHNIQUES:
+          </span>
+          {pickedAbilityObjects.map((ab) => (
+            <div
+              key={ab.id}
+              title={`${ab.name} — ${ab.description}`}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-cinzel"
+              style={{
+                background: "oklch(0.10 0.02 260)",
+                border: `1px solid ${ab.color}44`,
+                color: ab.color,
+                boxShadow: `0 0 6px ${ab.color}44`,
+                fontSize: "11px",
+              }}
+            >
+              <span>{ab.emoji}</span>
+              <span
+                style={{
+                  maxWidth: 90,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {ab.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Canvas + Overlay */}
       <div
         className="relative"
         style={{ animation: "survivalPulse 3s ease-in-out infinite" }}
@@ -869,6 +1205,113 @@ export default function SurvivalGame() {
           }}
         />
 
+        {/* Ability Picker Overlay */}
+        {showAbilityPicker && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center rounded-lg gap-6"
+            style={{
+              background: "rgba(3,4,12,0.88)",
+              backdropFilter: "blur(6px)",
+              animation: "overlayFadeIn 0.25s ease",
+              zIndex: 10,
+            }}
+          >
+            {/* Title */}
+            <div className="text-center">
+              <p
+                className="font-cinzel font-black text-2xl tracking-widest"
+                style={{
+                  color: "#88ccff",
+                  textShadow: "0 0 24px #4499ff, 0 0 48px #4499ff44",
+                  letterSpacing: "0.2em",
+                }}
+              >
+                CHOOSE YOUR TECHNIQUE
+              </p>
+              <p
+                className="font-exo text-xs mt-1"
+                style={{ color: "oklch(0.55 0.015 270)" }}
+              >
+                Select a cursed technique to empower your next wave
+              </p>
+            </div>
+
+            {/* Ability Cards */}
+            <div className="flex gap-4 px-6">
+              {abilityChoices.map((ab) => (
+                <button
+                  key={ab.id}
+                  type="button"
+                  className="ability-card flex flex-col items-center gap-3 p-4 rounded-xl text-left"
+                  data-ocid="cursed_survival.ability.button"
+                  style={{
+                    width: 190,
+                    background: "oklch(0.07 0.03 260)",
+                    border: `1.5px solid ${ab.color}`,
+                    boxShadow:
+                      hoveredAbility === ab.id
+                        ? `0 0 28px ${ab.color}99, 0 0 8px ${ab.color}44 inset`
+                        : `0 0 12px ${ab.color}44`,
+                  }}
+                  onMouseEnter={() => setHoveredAbility(ab.id)}
+                  onMouseLeave={() => setHoveredAbility(null)}
+                  onClick={() => handlePickAbility(ab)}
+                >
+                  {/* Emoji */}
+                  <div
+                    className="flex items-center justify-center w-14 h-14 rounded-full text-3xl"
+                    style={{
+                      background: `${ab.color}1a`,
+                      border: `1px solid ${ab.color}66`,
+                      boxShadow: `0 0 16px ${ab.color}44`,
+                    }}
+                  >
+                    {ab.emoji}
+                  </div>
+
+                  {/* Name */}
+                  <p
+                    className="font-cinzel font-bold text-center leading-tight"
+                    style={{ color: "oklch(0.95 0.01 265)", fontSize: 13 }}
+                  >
+                    {ab.name}
+                  </p>
+
+                  {/* Character */}
+                  <p
+                    className="font-exo text-center"
+                    style={{ color: ab.color, fontSize: 11, opacity: 0.9 }}
+                  >
+                    {ab.character}
+                  </p>
+
+                  {/* Description */}
+                  <p
+                    className="font-exo text-center"
+                    style={{
+                      color: "oklch(0.60 0.01 265)",
+                      fontSize: 11,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {ab.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            {/* Wave indicator */}
+            <p
+              className="font-cinzel text-xs tracking-widest"
+              style={{ color: "oklch(0.50 0.15 240)", opacity: 0.7 }}
+            >
+              WAVE {stateRef.current.wave} CLEARED — ABILITIES UNLOCKED:{" "}
+              {pickedAbilities.length}
+            </p>
+          </div>
+        )}
+
+        {/* Dead Overlay */}
         {status === "dead" && (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center rounded-lg gap-4"
@@ -889,9 +1332,19 @@ export default function SurvivalGame() {
             >
               Wave {wave} &mdash; Score: {score.toLocaleString()}
             </p>
+            {pickedAbilityObjects.length > 0 && (
+              <p
+                className="font-exo text-xs"
+                style={{ color: "oklch(0.55 0.015 270)" }}
+              >
+                Techniques mastered:{" "}
+                {pickedAbilityObjects.map((a) => a.emoji).join(" ")}
+              </p>
+            )}
             <button
               type="button"
               onClick={resetGame}
+              data-ocid="cursed_survival.primary_button"
               className="mt-2 px-8 py-3 rounded font-cinzel text-sm tracking-widest uppercase"
               style={{
                 background: "oklch(0.65 0.22 25 / 0.15)",

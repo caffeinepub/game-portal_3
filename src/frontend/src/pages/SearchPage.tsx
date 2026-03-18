@@ -1,6 +1,6 @@
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ExternalLink,
@@ -10,23 +10,25 @@ import {
   Search,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function resolveUrl(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^[^\s]+\.[^\s]+$/.test(trimmed) && !trimmed.includes(" "))
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^[^\s]+\.[^\s]+$/.test(trimmed) && !trimmed.includes(" ")) {
     return `https://${trimmed}`;
+  }
   return `https://search.brave.com/search?q=${encodeURIComponent(trimmed)}`;
 }
 
-// Use allorigins which strips X-Frame-Options and CSP headers server-side
-function proxyUrl(url: string): string {
-  return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-}
-
 const GAMING_SITES = [
+  {
+    label: "NewLife",
+    url: "https://truffled-getit-pleaselaugh.newlifesanctuarychurch.org",
+  },
   { label: "MathFun HW", url: "https://mathfunn.vercel.app/homework.html" },
   { label: "CrazyGames", url: "https://www.crazygames.com" },
   { label: "Poki", url: "https://poki.com" },
@@ -44,21 +46,34 @@ const GAMING_SITES = [
 ];
 
 export default function SearchPage() {
-  const [inputValue, setInputValue] = useState("");
+  const { url: initialUrl } = useSearch({ from: "/search" });
+
+  const [inputValue, setInputValue] = useState(initialUrl ?? "");
   const [iframeSrc, setIframeSrc] = useState("");
-  const [rawUrl, setRawUrl] = useState("");
   const [iframeKey, setIframeKey] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [realUrl, setRealUrl] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Auto-navigate if a URL was passed via query param
+  useEffect(() => {
+    if (initialUrl) {
+      navigate(initialUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUrl]);
+
   function navigate(raw: string = inputValue) {
-    const resolved = resolveUrl(raw);
-    if (!resolved) return;
-    setInputValue(raw.trim());
-    setRawUrl(resolved);
-    setIframeSrc(proxyUrl(resolved));
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    const real = resolveUrl(trimmed);
+    setRealUrl(real);
+    setInputValue(trimmed);
+    setIframeSrc(real);
     setIframeKey((k) => k + 1);
     setLoading(true);
+    setBlocked(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -82,11 +97,32 @@ export default function SearchPage() {
   }
 
   function handleRefresh() {
-    if (inputValue) navigate(inputValue);
+    if (iframeSrc) {
+      setIframeKey((k) => k + 1);
+      setLoading(true);
+      setBlocked(false);
+    }
   }
 
   function openInNewTab() {
-    if (rawUrl) window.open(rawUrl, "_blank", "noopener,noreferrer");
+    if (realUrl) window.open(realUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function handleIframeLoad() {
+    setLoading(false);
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc?.body && doc.body.innerHTML === "") {
+        setBlocked(true);
+      }
+    } catch {
+      // cross-origin — assume OK
+    }
+  }
+
+  function handleIframeError() {
+    setLoading(false);
+    setBlocked(true);
   }
 
   return (
@@ -174,7 +210,7 @@ export default function SearchPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search Brave or enter a URL..."
+              placeholder="Search or enter a URL..."
               className="w-full pl-8 pr-4 py-2 rounded font-orbitron text-xs tracking-wide outline-none transition-all"
               style={{
                 background: "oklch(0.11 0.01 270)",
@@ -285,18 +321,64 @@ export default function SearchPage() {
                 </p>
               </div>
             )}
-            <iframe
-              ref={iframeRef}
-              key={iframeKey}
-              src={iframeSrc}
-              className="w-full flex-1"
-              style={{ border: "none", minHeight: "calc(100vh - 240px)" }}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              referrerPolicy="no-referrer"
-              title="Cursed Browser"
-              onLoad={() => setLoading(false)}
-            />
+            {blocked ? (
+              <div
+                className="flex-1 flex flex-col items-center justify-center gap-5 py-20"
+                style={{ minHeight: "calc(100vh - 240px)" }}
+              >
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center"
+                  style={{
+                    background: "oklch(0.55 0.18 30 / 0.1)",
+                    border: "1px solid oklch(0.55 0.18 30 / 0.4)",
+                  }}
+                >
+                  <span style={{ fontSize: 36 }}>🚫</span>
+                </div>
+                <div className="text-center">
+                  <p
+                    className="font-orbitron font-bold text-sm tracking-widest mb-2"
+                    style={{ color: "oklch(0.75 0.18 30)" }}
+                  >
+                    SITE BLOCKED EMBEDDING
+                  </p>
+                  <p
+                    className="font-orbitron text-xs tracking-wider max-w-xs"
+                    style={{ color: "oklch(0.72 0.015 280)" }}
+                  >
+                    This site uses advanced blocking. Use OPEN TAB to view it in
+                    a new window.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openInNewTab}
+                  className="px-6 py-2 rounded font-orbitron text-xs tracking-widest uppercase flex items-center gap-2"
+                  style={{
+                    background: "oklch(0.55 0.18 145 / 0.15)",
+                    border: "1px solid oklch(0.55 0.18 145 / 0.6)",
+                    color: "oklch(0.75 0.18 145)",
+                  }}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  OPEN TAB
+                </button>
+              </div>
+            ) : (
+              <iframe
+                ref={iframeRef}
+                key={iframeKey}
+                src={iframeSrc}
+                className="w-full flex-1"
+                style={{ border: "none", minHeight: "calc(100vh - 240px)" }}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                referrerPolicy="no-referrer"
+                title="Cursed Browser"
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+              />
+            )}
           </div>
         ) : (
           <motion.div
@@ -325,7 +407,7 @@ export default function SearchPage() {
                 className="font-orbitron text-xs tracking-widest"
                 style={{ color: "oklch(0.72 0.015 280)" }}
               >
-                Enter a URL, search with Brave, or pick a gaming site above
+                Enter a URL, search, or pick a gaming site above
               </p>
             </div>
           </motion.div>

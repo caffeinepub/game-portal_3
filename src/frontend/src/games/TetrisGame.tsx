@@ -10,6 +10,35 @@ const PREVIEW_SIZE = 4 * CELL;
 
 type Board = (string | null)[][];
 
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+interface CursedOrb {
+  x: number;
+  y: number;
+  vy: number;
+  radius: number;
+  alpha: number;
+  phase: number;
+}
+
+interface KanjiFragment {
+  x: number;
+  y: number;
+  vy: number;
+  char: string;
+  alpha: number;
+  size: number;
+}
+
 const TETROMINOES: Record<
   string,
   { shape: number[][]; color: string; glow: string }
@@ -66,6 +95,7 @@ const TETROMINOES: Record<
 };
 
 const PIECE_KEYS = Object.keys(TETROMINOES);
+const KANJI_CHARS = ["呪", "術", "廻", "戦", "霊", "域", "展", "開"];
 
 function emptyBoard(): Board {
   return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -149,9 +179,82 @@ function dropGhost(
   return ghostRow;
 }
 
+// Draw a 3D beveled block cell
+function drawBeveledBlock(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  glowColor: string,
+) {
+  const pad = 1;
+  const bx = x + pad;
+  const by = y + pad;
+  const bs = size - pad * 2;
+
+  // Glow
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 10;
+
+  // Base fill
+  ctx.fillStyle = color;
+  ctx.fillRect(bx, by, bs, bs);
+  ctx.shadowBlur = 0;
+
+  // Top-left bright highlight bevel
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.fillRect(bx, by, bs, 3); // top edge
+  ctx.fillRect(bx, by, 3, bs); // left edge
+
+  // Bottom-right dark shadow bevel
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(bx, by + bs - 3, bs, 3); // bottom edge
+  ctx.fillRect(bx + bs - 3, by, 3, bs); // right edge
+
+  // Inner shine stripe
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillRect(bx + 3, by + 3, bs - 6, 4);
+
+  // Diagonal texture lines
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for (let d = 4; d < bs; d += 7) {
+    ctx.beginPath();
+    ctx.moveTo(bx + d, by);
+    ctx.lineTo(bx, by + d);
+    ctx.stroke();
+  }
+}
+
+function initOrbsAndKanji(
+  orbsRef: React.MutableRefObject<CursedOrb[]>,
+  kanjiRef: React.MutableRefObject<KanjiFragment[]>,
+) {
+  orbsRef.current = Array.from({ length: 8 }, (_, i) => ({
+    x: 30 + ((i * 37) % CANVAS_W),
+    y: 20 + ((i * 61) % CANVAS_H),
+    vy: 0.2 + (i % 3) * 0.1,
+    radius: 18 + (i % 4) * 10,
+    alpha: 0.06 + (i % 3) * 0.02,
+    phase: i * 0.8,
+  }));
+  kanjiRef.current = Array.from({ length: 6 }, (_, i) => ({
+    x: 20 + ((i * 53) % CANVAS_W),
+    y: (i * 71) % CANVAS_H,
+    vy: 0.3 + (i % 3) * 0.15,
+    char: KANJI_CHARS[i % KANJI_CHARS.length],
+    alpha: 0.06 + (i % 2) * 0.03,
+    size: 14 + (i % 3) * 5,
+  }));
+}
+
 export default function TetrisGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const orbsRef = useRef<CursedOrb[]>([]);
+  const kanjiRef = useRef<KanjiFragment[]>([]);
 
   const stateRef = useRef({
     board: emptyBoard(),
@@ -179,6 +282,42 @@ export default function TetrisGame() {
   const [showDialog, setShowDialog] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
 
+  const spawnLineClearParticles = useCallback(
+    (clearedRows: number[], board: Board) => {
+      const colors = [
+        "#00E5FF",
+        "#FF3DF7",
+        "#FFE600",
+        "#39FF14",
+        "#CC44FF",
+        "#FF2D55",
+        "#FF8C00",
+      ];
+      for (const rowIdx of clearedRows) {
+        for (let c = 0; c < COLS; c++) {
+          const cellColor = board[rowIdx][c];
+          const count = 3;
+          for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1.5 + Math.random() * 3;
+            particlesRef.current.push({
+              x: c * CELL + CELL / 2,
+              y: rowIdx * CELL + CELL / 2,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 40 + Math.random() * 30,
+              maxLife: 70,
+              color:
+                cellColor ?? colors[Math.floor(Math.random() * colors.length)],
+              size: 2 + Math.random() * 3,
+            });
+          }
+        }
+      }
+    },
+    [],
+  );
+
   const drawBoard = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -186,7 +325,6 @@ export default function TetrisGame() {
     if (!ctx) return;
     const s = stateRef.current;
 
-    // Increment bg animation frame
     s.bgFrame = (s.bgFrame || 0) + 1;
     const bgF = s.bgFrame;
 
@@ -198,6 +336,49 @@ export default function TetrisGame() {
     tetBg.addColorStop(1, "#030010");
     ctx.fillStyle = tetBg;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Cursed energy orbs drifting
+    for (const orb of orbsRef.current) {
+      orb.y -= orb.vy;
+      orb.phase += 0.02;
+      orb.x += Math.sin(orb.phase) * 0.4;
+      if (orb.y + orb.radius < 0) {
+        orb.y = CANVAS_H + orb.radius;
+        orb.x = Math.random() * CANVAS_W;
+      }
+      const grad = ctx.createRadialGradient(
+        orb.x,
+        orb.y,
+        0,
+        orb.x,
+        orb.y,
+        orb.radius,
+      );
+      grad.addColorStop(0, `rgba(0,180,255,${orb.alpha * 2.5})`);
+      grad.addColorStop(0.5, `rgba(0,100,220,${orb.alpha})`);
+      grad.addColorStop(1, "rgba(0,50,180,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Kanji fragments drifting upward
+    ctx.textAlign = "center";
+    for (const kf of kanjiRef.current) {
+      kf.y -= kf.vy;
+      if (kf.y + kf.size < 0) {
+        kf.y = CANVAS_H + kf.size;
+        kf.x = Math.random() * CANVAS_W;
+        kf.char = KANJI_CHARS[Math.floor(Math.random() * KANJI_CHARS.length)];
+      }
+      ctx.globalAlpha = kf.alpha;
+      ctx.fillStyle = "#00aaff";
+      ctx.font = `${kf.size}px serif`;
+      ctx.fillText(kf.char, kf.x, kf.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
 
     // Animated ghost blocks drifting down
     const ghostColors = [
@@ -215,7 +396,7 @@ export default function TetrisGame() {
       const startY = (i * 47 + 11) % CANVAS_H;
       const by = ((startY + bgF * speed) % (CANVAS_H + CELL * 4)) - CELL * 2;
       const colorIdx = i % ghostColors.length;
-      ctx.globalAlpha = 0.06 + Math.sin(bgF * 0.02 + i) * 0.02;
+      ctx.globalAlpha = 0.04 + Math.sin(bgF * 0.02 + i) * 0.015;
       ctx.fillStyle = ghostColors[colorIdx];
       ctx.fillRect(col2 * CELL + 1, by, CELL - 2, CELL - 2);
       ctx.fillRect(col2 * CELL + 1, by + CELL, CELL - 2, CELL - 2);
@@ -240,25 +421,18 @@ export default function TetrisGame() {
     }
 
     // Scanlines
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillStyle = "rgba(0,0,0,0.07)";
     for (let y = 0; y < CANVAS_H; y += 4) {
       ctx.fillRect(0, y, CANVAS_W, 2);
     }
     ctx.restore();
 
-    // Placed blocks
+    // Placed blocks (3D beveled)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const color = s.board[r][c];
         if (color) {
-          ctx.shadowColor = color;
-          ctx.shadowBlur = 8;
-          ctx.fillStyle = color;
-          ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
-          ctx.shadowBlur = 0;
-          // inner highlight
-          ctx.fillStyle = "rgba(255,255,255,0.15)";
-          ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, 4);
+          drawBeveledBlock(ctx, c * CELL, r * CELL, CELL, color, color);
         }
       }
     }
@@ -285,34 +459,47 @@ export default function TetrisGame() {
       ctx.globalAlpha = 1;
     }
 
-    // Active piece
+    // Active piece (3D beveled)
     if (s.running && s.shape.length) {
       const tetDef = TETROMINOES[s.piece];
-      ctx.shadowColor = tetDef.glow;
-      ctx.shadowBlur = 14;
-      ctx.fillStyle = tetDef.color;
       for (let r = 0; r < s.shape.length; r++) {
         for (let c = 0; c < s.shape[r].length; c++) {
           if (s.shape[r][c]) {
-            ctx.fillRect(
-              (s.col + c) * CELL + 1,
-              (s.row + r) * CELL + 1,
-              CELL - 2,
-              CELL - 2,
+            drawBeveledBlock(
+              ctx,
+              (s.col + c) * CELL,
+              (s.row + r) * CELL,
+              CELL,
+              tetDef.color,
+              tetDef.glow,
             );
-            ctx.fillStyle = "rgba(255,255,255,0.15)";
-            ctx.fillRect(
-              (s.col + c) * CELL + 1,
-              (s.row + r) * CELL + 1,
-              CELL - 2,
-              4,
-            );
-            ctx.fillStyle = tetDef.color;
           }
         }
       }
-      ctx.shadowBlur = 0;
     }
+
+    // Particles
+    const alive: Particle[] = [];
+    for (const p of particlesRef.current) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.08; // gravity
+      p.life--;
+      if (p.life > 0) {
+        const a = p.life / p.maxLife;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        alive.push(p);
+      }
+    }
+    ctx.globalAlpha = 1;
+    particlesRef.current = alive;
   }, []);
 
   const drawPreview = useCallback(() => {
@@ -330,22 +517,20 @@ export default function TetrisGame() {
     const offsetX = Math.floor((4 - shape[0].length) / 2);
     const offsetY = Math.floor((4 - shape.length) / 2);
 
-    ctx.shadowColor = tetDef.glow;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = tetDef.color;
     for (let r = 0; r < shape.length; r++) {
       for (let c = 0; c < shape[r].length; c++) {
         if (shape[r][c]) {
-          ctx.fillRect(
-            (offsetX + c) * CELL + 1,
-            (offsetY + r) * CELL + 1,
-            CELL - 2,
-            CELL - 2,
+          drawBeveledBlock(
+            ctx,
+            (offsetX + c) * CELL,
+            (offsetY + r) * CELL,
+            CELL,
+            tetDef.color,
+            tetDef.glow,
           );
         }
       }
     }
-    ctx.shadowBlur = 0;
   }, []);
 
   const spawnPiece = useCallback(() => {
@@ -367,6 +552,19 @@ export default function TetrisGame() {
   const lockPiece = useCallback(() => {
     const s = stateRef.current;
     s.board = placePiece(s.board, s.shape, s.row, s.col, s.piece);
+
+    // Find which rows will be cleared for particles
+    const clearedRowIndices: number[] = [];
+    for (let r = 0; r < ROWS; r++) {
+      if (s.board[r].every((cell) => cell !== null)) {
+        clearedRowIndices.push(r);
+      }
+    }
+
+    if (clearedRowIndices.length > 0) {
+      spawnLineClearParticles(clearedRowIndices, s.board);
+    }
+
     const { board: cleared, cleared: numCleared } = clearLines(s.board);
     s.board = cleared;
     if (numCleared > 0) {
@@ -378,7 +576,7 @@ export default function TetrisGame() {
     }
     spawnPiece();
     drawBoard();
-  }, [spawnPiece, drawBoard]);
+  }, [spawnPiece, drawBoard, spawnLineClearParticles]);
 
   const gameLoop = useCallback(
     (time: number) => {
@@ -423,6 +621,7 @@ export default function TetrisGame() {
     dropIntervalRef.current = 800;
     dropAccumRef.current = 0;
     lastTimeRef.current = 0;
+    particlesRef.current = [];
     setDisplay({ score: 0, level: 1, lines: 0 });
     setStarted(true);
     setShowDialog(false);
@@ -432,6 +631,7 @@ export default function TetrisGame() {
   }, [gameLoop, drawPreview]);
 
   useEffect(() => {
+    initOrbsAndKanji(orbsRef, kanjiRef);
     drawBoard();
     drawPreview();
     return () => {

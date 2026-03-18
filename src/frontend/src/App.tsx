@@ -44,6 +44,9 @@ const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
   component: SearchPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    url: typeof search.url === "string" ? search.url : undefined,
+  }),
 });
 
 const routeTree = rootRoute.addChildren([homeRoute, gameRoute, searchRoute]);

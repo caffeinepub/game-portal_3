@@ -1,7 +1,7 @@
 import ScoreDialog from "@/components/ScoreDialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const CELL_SIZE = 20;
+const CELL_SIZE = 22;
 const COLS = 25;
 const ROWS = 20;
 const CANVAS_W = COLS * CELL_SIZE;
@@ -10,6 +10,15 @@ const CANVAS_H = ROWS * CELL_SIZE;
 type Dir = "UP" | "DOWN" | "LEFT" | "RIGHT";
 type Point = { x: number; y: number };
 type GameMode = null | "single" | "two";
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  color: string;
+  size: number;
+};
 
 function randomFood(snakes: Point[][]): Point {
   let pos: Point;
@@ -23,8 +32,38 @@ function randomFood(snakes: Point[][]): Point {
   return pos;
 }
 
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
 export default function SnakeGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const frameRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
+  const accumRef = useRef<number>(0);
+
   const stateRef = useRef({
     snake: [
       { x: 12, y: 10 },
@@ -48,6 +87,7 @@ export default function SnakeGame() {
     speed: 150,
     mode: "single" as "single" | "two",
     winner: "" as "" | "P1" | "P2",
+    foodAnim: 0,
   });
   const intervalRef = useRef<number | null>(null);
   const [displayScore, setDisplayScore] = useState(0);
@@ -59,57 +99,345 @@ export default function SnakeGame() {
   const [p1Wins, setP1Wins] = useState(0);
   const [p2Wins, setP2Wins] = useState(0);
 
+  const spawnParticles = useCallback(
+    (cx: number, cy: number, color: string) => {
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI * 2 * i) / 10 + Math.random() * 0.4;
+        const speed = 1.5 + Math.random() * 2.5;
+        particlesRef.current.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          color,
+          size: 2 + Math.random() * 3,
+        });
+      }
+    },
+    [],
+  );
+
   const drawBackground = useCallback((ctx: CanvasRenderingContext2D) => {
-    ctx.save();
-    const bgGrad = ctx.createRadialGradient(
-      CANVAS_W / 2,
-      CANVAS_H / 2,
-      0,
-      CANVAS_W / 2,
-      CANVAS_H / 2,
-      CANVAS_W * 0.8,
-    );
-    bgGrad.addColorStop(0, "#0D0A1A");
-    bgGrad.addColorStop(0.6, "#080610");
-    bgGrad.addColorStop(1, "#030208");
+    // Dark grass-like gradient background
+    const bgGrad = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
+    bgGrad.addColorStop(0, "#0a1a0a");
+    bgGrad.addColorStop(0.5, "#061206");
+    bgGrad.addColorStop(1, "#030a03");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    ctx.strokeStyle = "rgba(120, 60, 220, 0.12)";
-    ctx.lineWidth = 0.8;
-    const hexR = 28;
-    const hexW = hexR * Math.sqrt(3);
-    const hexH = hexR * 2;
-    for (let row = -1; row < CANVAS_H / (hexH * 0.75) + 2; row++) {
-      for (let col = -1; col < CANVAS_W / hexW + 2; col++) {
-        const cx2 = col * hexW + (row % 2 === 0 ? 0 : hexW / 2);
-        const cy2 = row * hexH * 0.75;
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const angle = (Math.PI / 3) * i - Math.PI / 6;
-          const hx = cx2 + hexR * Math.cos(angle);
-          const hy = cy2 + hexR * Math.sin(angle);
-          if (i === 0) ctx.moveTo(hx, hy);
-          else ctx.lineTo(hx, hy);
+    // Subtle grid lines
+    ctx.strokeStyle = "rgba(0, 180, 0, 0.06)";
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= CANVAS_W; x += CELL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_H);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= CANVAS_H; y += CELL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_W, y);
+      ctx.stroke();
+    }
+
+    // Subtle checkerboard grass texture
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        if ((row + col) % 2 === 0) {
+          ctx.fillStyle = "rgba(0, 120, 0, 0.04)";
+          ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
-        ctx.closePath();
-        ctx.stroke();
       }
     }
+
+    // Vignette
     const vign = ctx.createRadialGradient(
       CANVAS_W / 2,
       CANVAS_H / 2,
-      CANVAS_W * 0.25,
+      CANVAS_W * 0.2,
       CANVAS_W / 2,
       CANVAS_H / 2,
-      CANVAS_W * 0.85,
+      CANVAS_W * 0.75,
     );
     vign.addColorStop(0, "rgba(0,0,0,0)");
-    vign.addColorStop(1, "rgba(0,0,0,0.65)");
+    vign.addColorStop(1, "rgba(0,0,0,0.55)");
     ctx.fillStyle = vign;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    ctx.restore();
   }, []);
+
+  const drawApple = useCallback(
+    (ctx: CanvasRenderingContext2D, food: Point, anim: number) => {
+      const cx = food.x * CELL_SIZE + CELL_SIZE / 2;
+      const cy = food.y * CELL_SIZE + CELL_SIZE / 2;
+      const pulse = 1 + Math.sin(anim * 0.05) * 0.08;
+      const r = (CELL_SIZE / 2 - 2) * pulse;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      // Glow
+      ctx.shadowColor = "#ff3333";
+      ctx.shadowBlur = 14;
+
+      // Apple body gradient
+      const grad = ctx.createRadialGradient(
+        -r * 0.3,
+        -r * 0.3,
+        r * 0.1,
+        0,
+        0,
+        r,
+      );
+      grad.addColorStop(0, "#ff6666");
+      grad.addColorStop(0.45, "#cc1111");
+      grad.addColorStop(1, "#660000");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      // Apple shape: two circles merged
+      ctx.arc(r * 0.18, 0, r * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-r * 0.18, 0, r * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+
+      // Shine highlight
+      const shine = ctx.createRadialGradient(
+        -r * 0.35,
+        -r * 0.38,
+        0,
+        -r * 0.2,
+        -r * 0.25,
+        r * 0.48,
+      );
+      shine.addColorStop(0, "rgba(255,255,255,0.55)");
+      shine.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = shine;
+      ctx.beginPath();
+      ctx.ellipse(
+        -r * 0.25,
+        -r * 0.3,
+        r * 0.38,
+        r * 0.25,
+        -0.4,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+
+      // Stem
+      ctx.strokeStyle = "#5a3000";
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(r * 0.05, -r * 0.8);
+      ctx.quadraticCurveTo(r * 0.4, -r * 1.3, r * 0.3, -r * 1.5);
+      ctx.stroke();
+
+      // Leaf
+      ctx.fillStyle = "#22aa22";
+      ctx.shadowColor = "#00ff00";
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.ellipse(
+        r * 0.28,
+        -r * 1.15,
+        r * 0.28,
+        r * 0.14,
+        -0.8,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    },
+    [],
+  );
+
+  const drawSnakeSegment = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      seg: Point,
+      prev: Point | null,
+      _next: Point | null,
+      idx: number,
+      total: number,
+      isHead: boolean,
+      dir: Dir,
+      baseColor: string,
+      glowColor: string,
+      scale2: string,
+    ) => {
+      const t = idx / Math.max(total - 1, 1);
+      const pad = isHead ? 1 : lerp(2, 5, t);
+      const x = seg.x * CELL_SIZE + pad;
+      const y = seg.y * CELL_SIZE + pad;
+      const w = CELL_SIZE - pad * 2;
+      const h = CELL_SIZE - pad * 2;
+      const radius = isHead ? 7 : lerp(7, 3, t);
+
+      // Determine if we need to fill connection between segments
+      if (prev) {
+        const dx = seg.x - prev.x;
+        const dy = seg.y - prev.y;
+        if (Math.abs(dx) === 1 || Math.abs(dy) === 1) {
+          ctx.fillStyle = glowColor;
+          const cx = ((seg.x + prev.x) / 2) * CELL_SIZE + CELL_SIZE / 2;
+          const cy = ((seg.y + prev.y) / 2) * CELL_SIZE + CELL_SIZE / 2;
+          ctx.fillRect(
+            Math.min(seg.x, prev.x) * CELL_SIZE + pad + 1,
+            Math.min(seg.y, prev.y) * CELL_SIZE + pad + 1,
+            (Math.abs(dx) === 1 ? 2 : 1) * CELL_SIZE - (pad + 1) * 2,
+            (Math.abs(dy) === 1 ? 2 : 1) * CELL_SIZE - (pad + 1) * 2,
+          );
+          void cx;
+          void cy;
+        }
+      }
+
+      // Body gradient
+      const bodyGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+      if (isHead) {
+        bodyGrad.addColorStop(0, baseColor);
+        bodyGrad.addColorStop(1, glowColor);
+      } else {
+        const alpha = 1 - t * 0.45;
+        bodyGrad.addColorStop(
+          0,
+          `${baseColor}${Math.round(alpha * 255)
+            .toString(16)
+            .padStart(2, "0")}`,
+        );
+        bodyGrad.addColorStop(
+          1,
+          `${scale2}${Math.round(alpha * 200)
+            .toString(16)
+            .padStart(2, "0")}`,
+        );
+      }
+
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = isHead ? 14 : lerp(10, 3, t);
+      ctx.fillStyle = isHead ? baseColor : bodyGrad;
+      drawRoundedRect(ctx, x, y, w, h, radius);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Scale pattern on body
+      if (!isHead && idx % 2 === 0 && w > 6) {
+        ctx.strokeStyle = "rgba(255,255,255,0.1)";
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h / 2, w / 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Head: eyes and tongue
+      if (isHead) {
+        const cx = seg.x * CELL_SIZE + CELL_SIZE / 2;
+        const cy2 = seg.y * CELL_SIZE + CELL_SIZE / 2;
+        const eyeOffset = 4;
+        const eyeRadius = 2.5;
+        let e1x = cx;
+        let e1y = cy2;
+        let e2x = cx;
+        let e2y = cy2;
+        let tongueDx = 0;
+        let tongueDy = 0;
+
+        if (dir === "RIGHT") {
+          e1x = cx + 3;
+          e1y = cy2 - eyeOffset;
+          e2x = cx + 3;
+          e2y = cy2 + eyeOffset;
+          tongueDx = 8;
+        } else if (dir === "LEFT") {
+          e1x = cx - 3;
+          e1y = cy2 - eyeOffset;
+          e2x = cx - 3;
+          e2y = cy2 + eyeOffset;
+          tongueDx = -8;
+        } else if (dir === "UP") {
+          e1x = cx - eyeOffset;
+          e1y = cy2 - 3;
+          e2x = cx + eyeOffset;
+          e2y = cy2 - 3;
+          tongueDy = -8;
+        } else {
+          e1x = cx - eyeOffset;
+          e1y = cy2 + 3;
+          e2x = cx + eyeOffset;
+          e2y = cy2 + 3;
+          tongueDy = 8;
+        }
+
+        // Tongue
+        ctx.strokeStyle = "#ff4444";
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = "round";
+        const tx = cx + tongueDx * 0.5;
+        const ty = cy2 + tongueDy * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(cx + tongueDx * 0.3, cy2 + tongueDy * 0.3);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(
+          tx + tongueDx * 0.3 + tongueDy * 0.2,
+          ty + tongueDy * 0.3 - tongueDx * 0.2,
+        );
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(
+          tx + tongueDx * 0.3 - tongueDy * 0.2,
+          ty + tongueDy * 0.3 + tongueDx * 0.2,
+        );
+        ctx.stroke();
+
+        // Eye white
+        ctx.fillStyle = "white";
+        ctx.shadowColor = "white";
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(e1x, e1y, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(e2x, e2y, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupil
+        ctx.fillStyle = "#000";
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(
+          e1x + tongueDx * 0.1,
+          e1y + tongueDy * 0.1,
+          1.3,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(
+          e2x + tongueDx * 0.1,
+          e2y + tongueDy * 0.1,
+          1.3,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+    },
+    [],
+  );
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -117,71 +445,88 @@ export default function SnakeGame() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const s = stateRef.current;
+    s.foodAnim = (s.foodAnim || 0) + 1;
 
     drawBackground(ctx);
 
     // Food
-    const fx = s.food.x * CELL_SIZE + CELL_SIZE / 2;
-    const fy = s.food.y * CELL_SIZE + CELL_SIZE / 2;
-    ctx.shadowColor = "#39FF14";
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = "#39FF14";
-    ctx.beginPath();
-    ctx.arc(fx, fy, CELL_SIZE / 2 - 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    drawApple(ctx, s.food, s.foodAnim);
 
-    // P1 snake (cyan)
+    // Particles
+    const alive: Particle[] = [];
+    for (const p of particlesRef.current) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.08;
+      p.life -= 0.04;
+      if (p.life > 0) {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        alive.push(p);
+      }
+    }
+    ctx.globalAlpha = 1;
+    particlesRef.current = alive;
+
+    // P1 snake
     s.snake.forEach((seg, i) => {
-      const isHead = i === 0;
-      ctx.shadowColor = isHead ? "#00E5FF" : "#00BFFF";
-      ctx.shadowBlur = isHead ? 12 : 6;
-      ctx.fillStyle = isHead
-        ? "#00E5FF"
-        : `rgba(0, 229, 255, ${1 - (i / s.snake.length) * 0.6})`;
-      const pad = isHead ? 1 : 2;
-      ctx.fillRect(
-        seg.x * CELL_SIZE + pad,
-        seg.y * CELL_SIZE + pad,
-        CELL_SIZE - pad * 2,
-        CELL_SIZE - pad * 2,
+      drawSnakeSegment(
+        ctx,
+        seg,
+        i < s.snake.length - 1 ? s.snake[i + 1] : null,
+        i > 0 ? s.snake[i - 1] : null,
+        i,
+        s.snake.length,
+        i === 0,
+        s.dir,
+        "#00e5ff",
+        "#00bfff",
+        "#0066aa",
       );
     });
-    ctx.shadowBlur = 0;
 
-    // P1 label
-    if (s.mode === "two" && s.snake.length > 0) {
-      const head = s.snake[0];
-      ctx.fillStyle = "#00E5FF";
-      ctx.font = "bold 9px Orbitron, monospace";
-      ctx.fillText("P1", head.x * CELL_SIZE, head.y * CELL_SIZE - 3);
-    }
-
-    // P2 snake (magenta)
+    // P2 snake
     if (s.mode === "two") {
       s.snake2.forEach((seg, i) => {
-        const isHead = i === 0;
-        ctx.shadowColor = isHead ? "#FF2D78" : "#CC2060";
-        ctx.shadowBlur = isHead ? 12 : 6;
-        ctx.fillStyle = isHead
-          ? "#FF2D78"
-          : `rgba(255, 45, 120, ${1 - (i / s.snake2.length) * 0.6})`;
-        const pad = isHead ? 1 : 2;
-        ctx.fillRect(
-          seg.x * CELL_SIZE + pad,
-          seg.y * CELL_SIZE + pad,
-          CELL_SIZE - pad * 2,
-          CELL_SIZE - pad * 2,
+        drawSnakeSegment(
+          ctx,
+          seg,
+          i < s.snake2.length - 1 ? s.snake2[i + 1] : null,
+          i > 0 ? s.snake2[i - 1] : null,
+          i,
+          s.snake2.length,
+          i === 0,
+          s.dir2,
+          "#ff2d78",
+          "#cc2060",
+          "#880030",
         );
       });
-      ctx.shadowBlur = 0;
+    }
 
-      if (s.snake2.length > 0) {
-        const head2 = s.snake2[0];
-        ctx.fillStyle = "#FF2D78";
-        ctx.font = "bold 9px Orbitron, monospace";
-        ctx.fillText("P2", head2.x * CELL_SIZE, head2.y * CELL_SIZE - 3);
-      }
+    // Player labels
+    if (s.mode === "two") {
+      const drawLabel = (snake: Point[], color: string, label: string) => {
+        if (snake.length === 0) return;
+        const head = snake[0];
+        ctx.fillStyle = color;
+        ctx.font = "bold 8px Orbitron, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          label,
+          head.x * CELL_SIZE + CELL_SIZE / 2,
+          head.y * CELL_SIZE - 4,
+        );
+        ctx.textAlign = "left";
+      };
+      drawLabel(s.snake, "#00e5ff", "P1");
+      drawLabel(s.snake2, "#ff2d78", "P2");
     }
 
     // Game over overlay
@@ -198,7 +543,7 @@ export default function SnakeGame() {
       ctx.shadowBlur = 0;
       ctx.textAlign = "left";
     }
-  }, [drawBackground]);
+  }, [drawBackground, drawApple, drawSnakeSegment]);
 
   const tick = useCallback(() => {
     const s = stateRef.current;
@@ -231,6 +576,10 @@ export default function SnakeGame() {
       if (!ate) newSnake.pop();
       else {
         s.score += 10;
+        const fx = s.food.x * CELL_SIZE + CELL_SIZE / 2;
+        const fy = s.food.y * CELL_SIZE + CELL_SIZE / 2;
+        spawnParticles(fx, fy, "#ff4444");
+        spawnParticles(fx, fy, "#ffaa00");
         s.food = randomFood([newSnake]);
         if (s.score % 50 === 0 && s.speed > 60) {
           s.speed = Math.max(60, s.speed - 10);
@@ -241,7 +590,6 @@ export default function SnakeGame() {
       }
       s.snake = newSnake;
     } else {
-      // Two player mode
       s.dir2 = s.nextDir2;
       const head2 = { ...s.snake2[0] };
       if (s.dir2 === "UP") head2.y -= 1;
@@ -281,25 +629,54 @@ export default function SnakeGame() {
 
       const ate1 = head.x === s.food.x && head.y === s.food.y;
       const ate2 = head2.x === s.food.x && head2.y === s.food.y;
-
       const newSnake = [head, ...s.snake];
       const newSnake2 = [head2, ...s.snake2];
       if (!ate1) newSnake.pop();
       else {
         s.score += 10;
+        spawnParticles(
+          s.food.x * CELL_SIZE + CELL_SIZE / 2,
+          s.food.y * CELL_SIZE + CELL_SIZE / 2,
+          "#00e5ff",
+        );
         setDisplayScore(s.score);
       }
       if (!ate2) newSnake2.pop();
       else {
         s.score2 += 10;
+        spawnParticles(
+          s.food.x * CELL_SIZE + CELL_SIZE / 2,
+          s.food.y * CELL_SIZE + CELL_SIZE / 2,
+          "#ff2d78",
+        );
         setDisplayScore2(s.score2);
       }
       if (ate1 || ate2) s.food = randomFood([newSnake, newSnake2]);
       s.snake = newSnake;
       s.snake2 = newSnake2;
     }
-
     draw();
+  }, [draw, spawnParticles]);
+
+  // Continuous render loop for particle animations
+  useEffect(() => {
+    let running = true;
+    const loop = (time: number) => {
+      if (!running) return;
+      const dt = time - lastTimeRef.current;
+      lastTimeRef.current = time;
+      accumRef.current += dt;
+      // Only draw particles if game is not running (game loop handles draw during gameplay)
+      if (!stateRef.current.running && particlesRef.current.length > 0) {
+        draw();
+      }
+      frameRef.current = requestAnimationFrame(loop);
+    };
+    frameRef.current = requestAnimationFrame(loop);
+    return () => {
+      running = false;
+      cancelAnimationFrame(frameRef.current);
+    };
   }, [draw]);
 
   const startGame = useCallback(
@@ -327,6 +704,8 @@ export default function SnakeGame() {
       s.speed = 150;
       s.mode = selectedMode;
       s.winner = "";
+      s.foodAnim = 0;
+      particlesRef.current = [];
       setDisplayScore(0);
       setDisplayScore2(0);
       setShowDialog(false);
@@ -375,7 +754,6 @@ export default function SnakeGame() {
         LEFT: "RIGHT",
         RIGHT: "LEFT",
       };
-
       if (s.mode === "single") {
         const map: Record<string, Dir> = {
           ArrowUp: "UP",
@@ -393,7 +771,6 @@ export default function SnakeGame() {
           e.preventDefault();
         }
       } else {
-        // P1: WASD
         const p1Map: Record<string, Dir> = {
           w: "UP",
           s: "DOWN",
@@ -405,7 +782,6 @@ export default function SnakeGame() {
           s.nextDir = p1Dir;
           e.preventDefault();
         }
-        // P2: Arrow keys
         const p2Map: Record<string, Dir> = {
           ArrowUp: "UP",
           ArrowDown: "DOWN",
@@ -423,7 +799,6 @@ export default function SnakeGame() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Mode select screen
   if (!mode) {
     return (
       <div className="flex flex-col items-center gap-8">
@@ -562,15 +937,17 @@ export default function SnakeGame() {
       <div
         className="relative"
         style={{
-          border: "1px solid oklch(0.84 0.17 200 / 0.5)",
-          boxShadow: "0 0 20px oklch(0.84 0.17 200 / 0.3)",
+          border: "1px solid rgba(0,180,0,0.4)",
+          boxShadow:
+            "0 0 24px rgba(0,180,0,0.2), inset 0 0 40px rgba(0,0,0,0.4)",
+          borderRadius: "4px",
         }}
       >
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          style={{ display: "block" }}
+          style={{ display: "block", borderRadius: "4px" }}
         />
       </div>
 

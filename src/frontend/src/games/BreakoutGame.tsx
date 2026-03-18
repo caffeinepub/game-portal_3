@@ -22,6 +22,22 @@ const BRICK_COLORS = [
   { fill: "#39FF14", glow: "rgba(57,255,20,0.8)" },
 ];
 
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+interface TrailPoint {
+  x: number;
+  y: number;
+}
+
 function makeBricks() {
   const bricks: Array<{
     x: number;
@@ -42,10 +58,59 @@ function makeBricks() {
   return bricks;
 }
 
+// Draw a 3D beveled brick
+function drawBeveledBrick(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+  glow: string,
+) {
+  // Glow shadow
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+  ctx.shadowBlur = 0;
+
+  // Top-left bright bevel
+  ctx.fillStyle = "rgba(255,255,255,0.40)";
+  ctx.fillRect(x, y, w, 3);
+  ctx.fillRect(x, y, 3, h);
+
+  // Bottom-right dark bevel
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(x, y + h - 3, w, 3);
+  ctx.fillRect(x + w - 3, y, 3, h);
+
+  // Inner shine stripe
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(x + 3, y + 3, w - 6, 5);
+
+  // Diagonal texture
+  ctx.strokeStyle = "rgba(255,255,255,0.07)";
+  ctx.lineWidth = 1;
+  for (let d = 4; d < w + h; d += 8) {
+    const x1 = x + Math.max(0, d - h);
+    const y1 = y + Math.min(h, d);
+    const x2 = x + Math.min(w, d);
+    const y2 = y + Math.max(0, d - w);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+}
+
 export default function BreakoutGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
+  const particlesRef = useRef<Particle[]>([]);
+  const ballTrailRef = useRef<TrailPoint[]>([]);
+
   const gameRef = useRef({
     px: W / 2 - PADDLE_W / 2,
     bx: W / 2,
@@ -65,6 +130,27 @@ export default function BreakoutGame() {
   const [started, setStarted] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+
+  const spawnBrickParticles = useCallback(
+    (brickX: number, brickY: number, color: string) => {
+      const count = 8 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 4;
+        particlesRef.current.push({
+          x: brickX + BRICK_W / 2,
+          y: brickY + BRICK_H / 2,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 25 + Math.random() * 15,
+          maxLife: 40,
+          color,
+          size: 2 + Math.random() * 3,
+        });
+      }
+    },
+    [],
+  );
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -125,56 +211,174 @@ export default function BreakoutGame() {
         ctx.fillRect(x - 1, y - 1, 2, 2);
       }
     }
-    // Ball glow
+
+    // Ball ambient glow on bg
     const ballGlowGrad = ctx.createRadialGradient(
       g.bx,
       g.by,
       0,
       g.bx,
       g.by,
-      60,
+      70,
     );
-    ballGlowGrad.addColorStop(0, "rgba(255,61,247,0.15)");
+    ballGlowGrad.addColorStop(0, "rgba(255,61,247,0.12)");
     ballGlowGrad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = ballGlowGrad;
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
 
+    // 3D beveled bricks
     for (const b of g.bricks) {
       if (!b.alive) continue;
-      ctx.shadowColor = b.color.glow;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = b.color.fill;
-      ctx.fillRect(b.x, b.y, BRICK_W, BRICK_H);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(255,255,255,0.15)";
-      ctx.fillRect(b.x + 2, b.y + 2, BRICK_W - 4, 4);
+      drawBeveledBrick(
+        ctx,
+        b.x,
+        b.y,
+        BRICK_W,
+        BRICK_H,
+        b.color.fill,
+        b.color.glow,
+      );
     }
 
+    // --- Paddle: energy rune design ---
     const px = g.px;
+    const py = H - 30;
+    ctx.save();
+    // Outer glow
     ctx.shadowColor = "#00E5FF";
-    ctx.shadowBlur = 15;
-    const grad = ctx.createLinearGradient(px, H - 30, px + PADDLE_W, H - 30);
-    grad.addColorStop(0, "#7C3AED");
-    grad.addColorStop(0.5, "#00E5FF");
-    grad.addColorStop(1, "#7C3AED");
-    ctx.fillStyle = grad;
+    ctx.shadowBlur = 18;
+    const paddleGrad = ctx.createLinearGradient(px, py, px + PADDLE_W, py);
+    paddleGrad.addColorStop(0, "#7C3AED");
+    paddleGrad.addColorStop(0.3, "#00aaff");
+    paddleGrad.addColorStop(0.5, "#00E5FF");
+    paddleGrad.addColorStop(0.7, "#00aaff");
+    paddleGrad.addColorStop(1, "#7C3AED");
+    ctx.fillStyle = paddleGrad;
     ctx.beginPath();
-    ctx.roundRect(px, H - 30, PADDLE_W, PADDLE_H, 6);
+    ctx.roundRect(px, py, PADDLE_W, PADDLE_H, 6);
     ctx.fill();
     ctx.shadowBlur = 0;
 
+    // Inner glow lines
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + 8, py + 3);
+    ctx.lineTo(px + PADDLE_W - 8, py + 3);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(0,229,255,0.25)";
+    ctx.beginPath();
+    ctx.moveTo(px + 8, py + PADDLE_H - 4);
+    ctx.lineTo(px + PADDLE_W - 8, py + PADDLE_H - 4);
+    ctx.stroke();
+
+    // Energy node circles at each end
+    const nodeRadius = 5;
+    for (const nx of [px + nodeRadius + 1, px + PADDLE_W - nodeRadius - 1]) {
+      const nodeGrad = ctx.createRadialGradient(
+        nx,
+        py + PADDLE_H / 2,
+        0,
+        nx,
+        py + PADDLE_H / 2,
+        nodeRadius,
+      );
+      nodeGrad.addColorStop(0, "#ffffff");
+      nodeGrad.addColorStop(0.4, "#00E5FF");
+      nodeGrad.addColorStop(1, "rgba(0,229,255,0)");
+      ctx.shadowColor = "#00E5FF";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = nodeGrad;
+      ctx.beginPath();
+      ctx.arc(nx, py + PADDLE_H / 2, nodeRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // --- Ball trail ---
+    const trail = ballTrailRef.current;
+    for (let i = 0; i < trail.length; i++) {
+      const t = trail[i];
+      const alpha = ((i + 1) / (trail.length + 1)) * 0.5;
+      const radius = BALL_R * ((i + 1) / (trail.length + 1)) * 0.8;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#FF3DF7";
+      ctx.shadowColor = "#FF3DF7";
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    // --- Ball: shiny sphere ---
+    ctx.save();
+    // Outer halo
+    const haloGrad = ctx.createRadialGradient(
+      g.bx,
+      g.by,
+      BALL_R * 0.8,
+      g.bx,
+      g.by,
+      BALL_R * 2.5,
+    );
+    haloGrad.addColorStop(0, "rgba(255,61,247,0.3)");
+    haloGrad.addColorStop(1, "rgba(255,61,247,0)");
+    ctx.fillStyle = haloGrad;
+    ctx.beginPath();
+    ctx.arc(g.bx, g.by, BALL_R * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core sphere with radial gradient (highlight offset top-left)
     ctx.shadowColor = "#FF3DF7";
     ctx.shadowBlur = 20;
-    const bgrad = ctx.createRadialGradient(g.bx, g.by, 0, g.bx, g.by, BALL_R);
-    bgrad.addColorStop(0, "#FFFFFF");
-    bgrad.addColorStop(0.5, "#FF3DF7");
-    bgrad.addColorStop(1, "rgba(255,61,247,0)");
-    ctx.fillStyle = bgrad;
+    const hlx = g.bx - BALL_R * 0.35;
+    const hly = g.by - BALL_R * 0.35;
+    const sphereGrad = ctx.createRadialGradient(
+      hlx,
+      hly,
+      0,
+      g.bx,
+      g.by,
+      BALL_R,
+    );
+    sphereGrad.addColorStop(0, "#ffffff");
+    sphereGrad.addColorStop(0.3, "#ffaaff");
+    sphereGrad.addColorStop(0.65, "#FF3DF7");
+    sphereGrad.addColorStop(1, "rgba(180,0,180,0.8)");
+    ctx.fillStyle = sphereGrad;
     ctx.beginPath();
     ctx.arc(g.bx, g.by, BALL_R, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // --- Particles ---
+    const alive: Particle[] = [];
+    for (const p of particlesRef.current) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.1;
+      p.life--;
+      if (p.life > 0) {
+        const a = p.life / p.maxLife;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        alive.push(p);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    particlesRef.current = alive;
 
     ctx.font = "14px 'Orbitron', sans-serif";
     ctx.fillStyle = "#00E5FF";
@@ -194,6 +398,12 @@ export default function BreakoutGame() {
 
       const targetX = mouseRef.current - PADDLE_W / 2;
       g.px = Math.max(0, Math.min(W - PADDLE_W, targetX));
+
+      // Update ball trail
+      ballTrailRef.current.push({ x: g.bx, y: g.by });
+      if (ballTrailRef.current.length > 5) {
+        ballTrailRef.current.shift();
+      }
 
       g.bx += g.vx * (dt / 16);
       g.by += g.vy * (dt / 16);
@@ -225,6 +435,7 @@ export default function BreakoutGame() {
 
       if (g.by + BALL_R > H) {
         g.lives--;
+        ballTrailRef.current = [];
         setDisplayLives(g.lives);
         if (g.lives <= 0) {
           g.running = false;
@@ -249,6 +460,7 @@ export default function BreakoutGame() {
           g.by - BALL_R < b.y + BRICK_H
         ) {
           b.alive = false;
+          spawnBrickParticles(b.x, b.y, b.color.fill);
           g.score += 10;
           setDisplayScore(g.score);
           const fromTop = g.by - BALL_R < b.y;
@@ -278,7 +490,7 @@ export default function BreakoutGame() {
       draw();
       rafRef.current = requestAnimationFrame(gameLoop);
     },
-    [draw],
+    [draw, spawnBrickParticles],
   );
 
   const startGame = useCallback(() => {
@@ -294,6 +506,8 @@ export default function BreakoutGame() {
     g.running = true;
     g.gameOver = false;
     g.won = false;
+    particlesRef.current = [];
+    ballTrailRef.current = [];
     setDisplayScore(0);
     setDisplayLives(3);
     setStarted(true);

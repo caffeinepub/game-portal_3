@@ -1,9 +1,18 @@
-import { Link } from "@tanstack/react-router";
-import { Flame, Search } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Film, Flame, Search } from "lucide-react";
+
+const MOVIE_URL =
+  "https://hydrahd.ru/movie/54297-watch-monster-house-2006-online";
 
 const NAV_ITEMS = ["HOME", "GAMES", "LEADERBOARDS", "NEWS", "COMMUNITY"];
 
 export default function Header() {
+  const navigate = useNavigate();
+
+  function openMovies() {
+    navigate({ to: "/search", search: { url: MOVIE_URL } });
+  }
+
   return (
     <header
       className="sticky top-0 z-50 border-b border-border"
@@ -51,8 +60,24 @@ export default function Header() {
               {item}
             </Link>
           ))}
+          {/* Movies tab */}
+          <button
+            type="button"
+            onClick={openMovies}
+            className="flex items-center gap-1.5 font-cinzel text-xs font-medium tracking-widest transition-colors no-underline px-3 py-1.5 rounded border cursor-pointer bg-transparent"
+            style={{
+              color: "oklch(0.80 0.20 30)",
+              borderColor: "oklch(0.60 0.18 30 / 0.5)",
+              boxShadow: "0 0 6px oklch(0.60 0.18 30 / 0.2)",
+            }}
+            data-ocid="nav.link"
+          >
+            <Film className="w-3 h-3" />
+            MOVIES
+          </button>
           <Link
             to="/search"
+            search={{ url: undefined }}
             className="flex items-center gap-1.5 font-cinzel text-xs font-medium tracking-widest transition-colors no-underline px-3 py-1.5 rounded border"
             style={{
               color: "oklch(0.65 0.22 290)",
