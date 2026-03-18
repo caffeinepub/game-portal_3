@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  ExternalLink,
   Gamepad2,
   Link as LinkIcon,
   RefreshCw,
@@ -18,6 +19,11 @@ function resolveUrl(input: string): string {
   if (/^[^\s]+\.[^\s]+$/.test(trimmed) && !trimmed.includes(" "))
     return `https://${trimmed}`;
   return `https://search.brave.com/search?q=${encodeURIComponent(trimmed)}`;
+}
+
+// Use allorigins which strips X-Frame-Options and CSP headers server-side
+function proxyUrl(url: string): string {
+  return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 }
 
 const GAMING_SITES = [
@@ -40,15 +46,19 @@ const GAMING_SITES = [
 export default function SearchPage() {
   const [inputValue, setInputValue] = useState("");
   const [iframeSrc, setIframeSrc] = useState("");
+  const [rawUrl, setRawUrl] = useState("");
   const [iframeKey, setIframeKey] = useState(0);
+  const [loading, setLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   function navigate(raw: string = inputValue) {
-    const url = resolveUrl(raw);
-    if (!url) return;
+    const resolved = resolveUrl(raw);
+    if (!resolved) return;
     setInputValue(raw.trim());
-    setIframeSrc(url);
+    setRawUrl(resolved);
+    setIframeSrc(proxyUrl(resolved));
     setIframeKey((k) => k + 1);
+    setLoading(true);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -73,6 +83,10 @@ export default function SearchPage() {
 
   function handleRefresh() {
     if (inputValue) navigate(inputValue);
+  }
+
+  function openInNewTab() {
+    if (rawUrl) window.open(rawUrl, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -195,6 +209,23 @@ export default function SearchPage() {
             <Search className="w-3.5 h-3.5" />
             GO
           </button>
+
+          {iframeSrc && (
+            <button
+              type="button"
+              onClick={openInNewTab}
+              className="flex-shrink-0 px-3 h-8 rounded font-orbitron text-xs tracking-widest uppercase flex items-center gap-1.5"
+              style={{
+                background: "oklch(0.55 0.18 145 / 0.15)",
+                border: "1px solid oklch(0.55 0.18 145 / 0.6)",
+                color: "oklch(0.75 0.18 145)",
+              }}
+              title="Open in new tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              OPEN TAB
+            </button>
+          )}
         </div>
 
         {/* Gaming shortcuts */}
@@ -230,17 +261,43 @@ export default function SearchPage() {
       {/* Iframe area */}
       <div className="flex-1 relative flex flex-col" style={{ minHeight: 0 }}>
         {iframeSrc ? (
-          <iframe
-            ref={iframeRef}
-            key={iframeKey}
-            src={iframeSrc}
-            className="w-full flex-1"
-            style={{ border: "none", minHeight: "calc(100vh - 240px)" }}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-            referrerPolicy="no-referrer"
-            title="Cursed Browser"
-          />
+          <div className="relative flex-1 flex flex-col">
+            {loading && (
+              <div
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
+                style={{
+                  background: "oklch(0.09 0.01 270 / 0.85)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full border-2 animate-spin"
+                  style={{
+                    borderColor: "oklch(0.84 0.17 200 / 0.2)",
+                    borderTopColor: "oklch(0.84 0.17 200)",
+                  }}
+                />
+                <p
+                  className="font-orbitron text-xs tracking-widest"
+                  style={{ color: "oklch(0.84 0.17 200)" }}
+                >
+                  LOADING...
+                </p>
+              </div>
+            )}
+            <iframe
+              ref={iframeRef}
+              key={iframeKey}
+              src={iframeSrc}
+              className="w-full flex-1"
+              style={{ border: "none", minHeight: "calc(100vh - 240px)" }}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-downloads allow-modals"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              referrerPolicy="no-referrer"
+              title="Cursed Browser"
+              onLoad={() => setLoading(false)}
+            />
+          </div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
