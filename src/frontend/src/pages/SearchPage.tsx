@@ -21,7 +21,7 @@ function resolveUrl(input: string): string {
   if (/^[^\s]+\.[^\s]+$/.test(trimmed) && !trimmed.includes(" ")) {
     return `https://${trimmed}`;
   }
-  return `https://search.brave.com/search?q=${encodeURIComponent(trimmed)}`;
+  return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
 }
 
 const GAMING_SITES = [
