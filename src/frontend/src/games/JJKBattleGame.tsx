@@ -570,6 +570,12 @@ export default function JJKBattleGame() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [won, setWon] = useState(false);
+  const [cutScene, setCutScene] = useState<{
+    char: Character;
+    tech: Technique;
+    side: "player" | "enemy";
+    techIndex: number;
+  } | null>(null);
   const processingEnemyTurn = useRef(false);
 
   const triggerFlash = useCallback((color: string) => {
@@ -625,9 +631,9 @@ export default function JJKBattleGame() {
         if (techIndex === "auto") {
           dmg = randInt(3, 8);
           actionName = "Auto-Attack";
-
+        } else {
           const tech = actingChar.techniques[techIndex];
-          if (actingCe < tech.cost) return prev;
+          if (!tech || actingCe < tech.cost) return prev;
           dmg = randInt(tech.minDmg, tech.maxDmg);
           healAmount = tech.heals ?? 0;
           ceCost = tech.cost;
@@ -678,12 +684,50 @@ export default function JJKBattleGame() {
   );
 
   const doPlayerAction = useCallback(
-    (techIndex: number | "auto") => doAction(techIndex, "player"),
-    [doAction],
+    (techIndex: number | "auto") => {
+      if (!battle) return;
+      if (techIndex !== "auto") {
+        const tech = battle.playerChar.techniques[techIndex];
+        if (tech) {
+          setCutScene({
+            char: battle.playerChar,
+            tech,
+            side: "player",
+            techIndex,
+          });
+          setTimeout(() => {
+            setCutScene(null);
+            doAction(techIndex, "player");
+          }, 1800);
+          return;
+        }
+      }
+      doAction(techIndex, "player");
+    },
+    [battle, doAction],
   );
   const doP2Action = useCallback(
-    (techIndex: number | "auto") => doAction(techIndex, "enemy"),
-    [doAction],
+    (techIndex: number | "auto") => {
+      if (!battle) return;
+      if (techIndex !== "auto") {
+        const tech = battle.enemyChar.techniques[techIndex];
+        if (tech) {
+          setCutScene({
+            char: battle.enemyChar,
+            tech,
+            side: "enemy",
+            techIndex,
+          });
+          setTimeout(() => {
+            setCutScene(null);
+            doAction(techIndex, "enemy");
+          }, 1800);
+          return;
+        }
+      }
+      doAction(techIndex, "enemy");
+    },
+    [battle, doAction],
   );
 
   // CPU enemy turn — only in cpu mode
@@ -704,6 +748,15 @@ export default function JJKBattleGame() {
           available.length > 0
             ? available[Math.floor(Math.random() * available.length)]
             : null;
+        if (tech) {
+          setCutScene({
+            char: prev.enemyChar,
+            tech,
+            side: "enemy",
+            techIndex: prev.enemyChar.techniques.indexOf(tech),
+          });
+          setTimeout(() => setCutScene(null), 1800);
+        }
 
         let dmg = 0;
         let healAmount = 0;
@@ -715,7 +768,7 @@ export default function JJKBattleGame() {
           healAmount = tech.heals ?? 0;
           ceCost = tech.cost;
           actionName = tech.name;
-
+        } else {
           dmg = randInt(3, 8);
           actionName = "Auto-Attack";
         }
@@ -845,6 +898,194 @@ export default function JJKBattleGame() {
           </span>
         ))}
       </div>
+
+      {/* Ability Cut Scene Overlay */}
+      <AnimatePresence>
+        {cutScene && (
+          <motion.div
+            className="absolute inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ background: "oklch(0.03 0.01 265)" }}
+          >
+            <style>{`
+              @keyframes csKanjiPulse {
+                0% { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+                40% { transform: scale(1.15) rotate(3deg); opacity: 1; }
+                70% { transform: scale(0.98) rotate(0deg); opacity: 1; }
+                100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+              }
+              @keyframes csNameSlide {
+                0% { transform: translateX(-60px); opacity: 0; }
+                50% { transform: translateX(5px); opacity: 1; }
+                100% { transform: translateX(0); opacity: 1; }
+              }
+              @keyframes csTechSlide {
+                0% { transform: translateX(60px); opacity: 0; }
+                50% { transform: translateX(-5px); opacity: 1; }
+                100% { transform: translateX(0); opacity: 1; }
+              }
+              @keyframes csRay {
+                0% { opacity: 0; transform: scaleX(0); }
+                50% { opacity: 0.6; transform: scaleX(1); }
+                100% { opacity: 0; transform: scaleX(1); }
+              }
+              @keyframes csParticle {
+                0% { transform: translateY(0) scale(1); opacity: 1; }
+                100% { transform: translateY(-120px) scale(0); opacity: 0; }
+              }
+            `}</style>
+
+            {/* Energy rays */}
+            {(
+              [
+                "r0",
+                "r1",
+                "r2",
+                "r3",
+                "r4",
+                "r5",
+                "r6",
+                "r7",
+                "r8",
+                "r9",
+                "r10",
+                "r11",
+              ] as const
+            ).map((rk, i) => (
+              <div
+                key={rk}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                style={{ transform: `rotate(${i * 30}deg)` }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    height: "2px",
+                    background: `linear-gradient(90deg, transparent, ${cutScene.char.color}, transparent)`,
+                    animation: "csRay 1.8s ease-out forwards",
+                    animationDelay: `${i * 0.05}s`,
+                    transformOrigin: "center",
+                  }}
+                />
+              </div>
+            ))}
+
+            {/* Giant kanji */}
+            <div
+              style={{
+                fontSize: "22vw",
+                fontFamily: "Cinzel, serif",
+                fontWeight: 900,
+                color: cutScene.char.color,
+                textShadow: `0 0 80px ${cutScene.char.color}, 0 0 160px ${cutScene.char.color}`,
+                animation: "csKanjiPulse 1.8s ease-out forwards",
+                lineHeight: 1,
+                pointerEvents: "none",
+                userSelect: "none",
+                position: "absolute",
+                opacity: 0.15,
+              }}
+            >
+              {cutScene.char.kanji}
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10 flex flex-col items-center gap-4 px-6 text-center">
+              {/* Character name */}
+              <div
+                style={{
+                  animation: "csNameSlide 0.5s ease-out forwards",
+                  opacity: 0,
+                  animationFillMode: "forwards",
+                }}
+              >
+                <p
+                  className="font-cinzel text-sm tracking-[0.3em] uppercase"
+                  style={{ color: cutScene.char.color, opacity: 0.9 }}
+                >
+                  {cutScene.char.name}
+                </p>
+                <p
+                  className="font-exo text-xs tracking-widest"
+                  style={{ color: "oklch(0.60 0.015 270)" }}
+                >
+                  {cutScene.char.title}
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div
+                style={{
+                  width: "200px",
+                  height: "2px",
+                  background: `linear-gradient(90deg, transparent, ${cutScene.char.color}, transparent)`,
+                  boxShadow: `0 0 12px ${cutScene.char.color}`,
+                }}
+              />
+
+              {/* Technique name */}
+              <div
+                style={{
+                  animation: "csTechSlide 0.5s ease-out 0.2s forwards",
+                  opacity: 0,
+                  animationFillMode: "forwards",
+                }}
+              >
+                <p
+                  className="font-cinzel font-black uppercase"
+                  style={{
+                    fontSize: "clamp(1.8rem, 5vw, 3.5rem)",
+                    color:
+                      cutScene.tech.type === "special"
+                        ? "oklch(0.85 0.22 75)"
+                        : cutScene.tech.type === "defense"
+                          ? "oklch(0.70 0.22 240)"
+                          : cutScene.char.color,
+                    textShadow: `0 0 40px ${cutScene.char.color}, 0 0 80px ${cutScene.char.color}`,
+                    lineHeight: 1.1,
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {cutScene.tech.type === "special"
+                    ? "★ "
+                    : cutScene.tech.type === "defense"
+                      ? "◈ "
+                      : ""}
+                  {cutScene.tech.name}
+                </p>
+                <p
+                  className="font-exo text-sm mt-2"
+                  style={{ color: "oklch(0.70 0.01 265)", maxWidth: "380px" }}
+                >
+                  {cutScene.tech.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Particles */}
+            {(["p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"] as const).map(
+              (pk, i) => (
+                <div
+                  key={pk}
+                  className="absolute rounded-full pointer-events-none"
+                  style={{
+                    width: `${6 + i * 3}px`,
+                    height: `${6 + i * 3}px`,
+                    background: cutScene.char.color,
+                    boxShadow: `0 0 12px ${cutScene.char.color}`,
+                    left: `${20 + i * 8}%`,
+                    bottom: "30%",
+                    animation: `csParticle ${0.8 + i * 0.15}s ease-out ${i * 0.1}s infinite`,
+                  }}
+                />
+              ),
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Flash overlay */}
       <AnimatePresence>

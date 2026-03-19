@@ -89,6 +89,61 @@ interface GameState {
   healOnHit: boolean;
   hasHollowPurple: boolean;
   hollowPurpleCounter: number;
+  // Extended overpowered abilities
+  quadShot: boolean;
+  burstShot: boolean;
+  burstCounter: number;
+  homingShots: boolean;
+  explosiveShots: boolean;
+  vampiricStrike: boolean;
+  shieldHp: number;
+  hasShield: boolean;
+  shieldRechargeCd: number;
+  timeSlowActive: boolean;
+  timeSlowCd: number;
+  timeSlowTimer: number;
+  doomAura: boolean;
+  doomAuraCd: number;
+  cloneActive: boolean;
+  clonePos: { x: number; y: number } | null;
+  cloneShootCd: number;
+  spikeAura: boolean;
+  dmgReductionPct: number;
+  orbBombActive: boolean;
+  doubleScore: boolean;
+  instaKillBelowPct: number;
+  // Ultra-OP new abilities
+  multiShotCount: number;
+  ricochets: boolean;
+  chainLightning: boolean;
+  chainLightningCd: number;
+  frozenTime: boolean;
+  frozenTimeCd: number;
+  frozenTimeTimer: number;
+  blackHole: boolean;
+  blackHoleCd: number;
+  domainAmplification: boolean;
+  cursedRain: boolean;
+  cursedRainCd: number;
+  thorns: boolean;
+  thornsDmg: number;
+  massiveRegen: boolean;
+  massiveRegenTimer: number;
+  deathBurst: boolean;
+  deathBurstRadius: number;
+  godMode: boolean;
+  godModeCd: number;
+  godModeTimer: number;
+  infiniteAmmo: boolean;
+  superOrb: boolean;
+  ultraBlackFlash: boolean;
+  soulAbsorb: boolean;
+  soulAbsorbCount: number;
+  chainExplosion: boolean;
+  cursedStorm: boolean;
+  cursedStormCd: number;
+  teleport: boolean;
+  teleportCd: number;
 }
 
 const W = 700;
@@ -341,6 +396,480 @@ export const JJK_ABILITIES: JJKAbility[] = [
       s.hasHollowPurple = true;
     },
   },
+  {
+    id: "quad_shot",
+    name: "Boogie Woogie",
+    character: "Aoi Todo",
+    description:
+      "Swap positions to fire in ALL four diagonal directions simultaneously. Quad-shot devastates groups.",
+    emoji: "🔀",
+    color: "oklch(0.70 0.22 60)",
+    apply: (s) => {
+      s.quadShot = true;
+    },
+  },
+  {
+    id: "burst_shot",
+    name: "Cursed Burst",
+    character: "Yuji Itadori",
+    description:
+      "Every 5th shot unleashes a rapid 5-bullet burst. Suppression fire tears through crowds.",
+    emoji: "💥",
+    color: "oklch(0.65 0.22 30)",
+    apply: (s) => {
+      s.burstShot = true;
+      s.burstCounter = 0;
+    },
+  },
+  {
+    id: "homing",
+    name: "Flame Arrow",
+    character: "Maki Zenin",
+    description:
+      "Projectiles gain cursed homing. They track the nearest enemy and never miss.",
+    emoji: "🎯",
+    color: "oklch(0.70 0.22 45)",
+    apply: (s) => {
+      s.homingShots = true;
+    },
+  },
+  {
+    id: "explosive",
+    name: "Resonance: Detonation",
+    character: "Nobara Kugisaki",
+    description:
+      "Every projectile explodes on impact, dealing 3× AoE damage in a 60px radius.",
+    emoji: "💣",
+    color: "oklch(0.68 0.22 50)",
+    apply: (s) => {
+      s.explosiveShots = true;
+    },
+  },
+  {
+    id: "vampiric",
+    name: "Blood Drain",
+    character: "Choso",
+    description:
+      "Each kill restores 20 HP. You heal faster than enemies can damage you.",
+    emoji: "🩸",
+    color: "oklch(0.60 0.22 10)",
+    apply: (s) => {
+      s.vampiricStrike = true;
+    },
+  },
+  {
+    id: "shield",
+    name: "Cursed Shield",
+    character: "Aoi Todo",
+    description:
+      "A 150 HP cursed barrier absorbs all damage first and recharges every 10 seconds.",
+    emoji: "🛡️",
+    color: "oklch(0.70 0.22 200)",
+    apply: (s) => {
+      s.hasShield = true;
+      s.shieldHp = 150;
+      s.shieldRechargeCd = 0;
+    },
+  },
+  {
+    id: "time_slow",
+    name: "Idle Death Gamble",
+    character: "Hiromi Higuruma",
+    description:
+      "Activates Domain Expansion every 8 seconds, slowing ALL enemies by 80% for 3 seconds.",
+    emoji: "⏳",
+    color: "oklch(0.68 0.22 270)",
+    apply: (s) => {
+      s.timeSlowActive = true;
+      s.timeSlowCd = 0;
+    },
+  },
+  {
+    id: "doom_aura",
+    name: "Divergent Sigil",
+    character: "Kento Nanami",
+    description:
+      "Cursed sigils orbit you constantly, dealing 30 damage per second to all nearby enemies.",
+    emoji: "🌀",
+    color: "oklch(0.65 0.22 85)",
+    apply: (s) => {
+      s.doomAura = true;
+      s.doomAuraCd = 0;
+    },
+  },
+  {
+    id: "clone",
+    name: "Shadow Clone Shikigami",
+    character: "Megumi Fushiguro",
+    description:
+      "A shadow clone mirrors your position and fires independently, doubling your firepower.",
+    emoji: "👥",
+    color: "oklch(0.55 0.15 290)",
+    apply: (s) => {
+      s.cloneActive = true;
+      s.clonePos = { x: s.player.pos.x + 60, y: s.player.pos.y };
+      s.cloneShootCd = 0;
+    },
+  },
+  {
+    id: "spike_aura",
+    name: "Venom Spikes",
+    character: "Hanami",
+    description:
+      "Enemies that touch you take 40 damage and are knocked back instantly.",
+    emoji: "🌿",
+    color: "oklch(0.65 0.22 140)",
+    apply: (s) => {
+      s.spikeAura = true;
+    },
+  },
+  {
+    id: "iron_body",
+    name: "Iron Body",
+    character: "Aoi Todo",
+    description:
+      "Immovable cursed toughness. Gain 80 max HP and reduce all incoming damage by 50%.",
+    emoji: "🪨",
+    color: "oklch(0.65 0.10 80)",
+    apply: (s) => {
+      s.player.maxHp += 80;
+      s.player.hp = Math.min(s.player.hp + 80, s.player.maxHp);
+      s.dmgReductionPct = Math.min(0.75, s.dmgReductionPct + 0.5);
+    },
+  },
+  {
+    id: "orb_bomb",
+    name: "Orb Detonator",
+    character: "Ryomen Sukuna",
+    description:
+      "Energy orbs explode when collected, dealing 80 damage to all enemies within 100px.",
+    emoji: "💫",
+    color: "oklch(0.65 0.22 350)",
+    apply: (s) => {
+      s.orbBombActive = true;
+    },
+  },
+  {
+    id: "double_score",
+    name: "Heavenly Restriction",
+    character: "Toji Fushiguro",
+    description:
+      "Transcend cursed energy entirely. All score gains are permanently doubled.",
+    emoji: "⭐",
+    color: "oklch(0.75 0.18 55)",
+    apply: (s) => {
+      s.doubleScore = true;
+    },
+  },
+  {
+    id: "instakill",
+    name: "Dismantle",
+    character: "Ryomen Sukuna",
+    description:
+      "Sukuna's innate technique activates. Enemies below 25% HP are instantly sliced to death.",
+    emoji: "⚔️",
+    color: "oklch(0.60 0.25 5)",
+    apply: (s) => {
+      s.instaKillBelowPct = Math.min(0.5, s.instaKillBelowPct + 0.25);
+    },
+  },
+  {
+    id: "rapid_fire_extreme",
+    name: "Max Speed: Supernova",
+    character: "Nanami",
+    description:
+      "Push fire rate to the absolute extreme. Shoot 3× faster than normal.",
+    emoji: "🌟",
+    color: "oklch(0.78 0.20 70)",
+    apply: (s) => {
+      s.shootCdBase = Math.max(3, Math.round(s.shootCdBase * 0.33));
+    },
+  },
+  {
+    id: "god_mode",
+    name: "Six Eyes: Awakened",
+    character: "Gojo Satoru",
+    description:
+      "The Six Eyes open fully. Deal 3× damage, gain 100 HP, and fire rate doubles.",
+    emoji: "👁️",
+    color: "oklch(0.85 0.22 230)",
+    apply: (s) => {
+      s.dmgMultiplier *= 3;
+      s.player.maxHp += 100;
+      s.player.hp = Math.min(s.player.hp + 100, s.player.maxHp);
+      s.shootCdBase = Math.max(4, Math.round(s.shootCdBase * 0.5));
+    },
+  },
+  {
+    id: "multi_barrage",
+    name: "Unlimited Void Barrage",
+    character: "Gojo Satoru",
+    description:
+      "Fire 8 projectiles in all directions simultaneously every shot. Pure chaos.",
+    emoji: "💠",
+    color: "oklch(0.75 0.30 220)",
+    apply: (s) => {
+      s.multiShotCount = Math.min(16, (s.multiShotCount || 1) + 8);
+    },
+  },
+  {
+    id: "ricochet",
+    name: "Divergent Ricochet",
+    character: "Megumi Fushiguro",
+    description:
+      "Every projectile bounces off walls 5 times, hitting enemies repeatedly.",
+    emoji: "🔀",
+    color: "oklch(0.60 0.25 280)",
+    apply: (s) => {
+      s.ricochets = true;
+    },
+  },
+  {
+    id: "chain_lightning",
+    name: "Thunder God Surge",
+    character: "Nanami Kento",
+    description:
+      "Every 2 seconds, chain lightning arcs through ALL enemies dealing 80 damage each.",
+    emoji: "⚡",
+    color: "oklch(0.90 0.28 95)",
+    apply: (s) => {
+      s.chainLightning = true;
+      s.chainLightningCd = 0;
+    },
+  },
+  {
+    id: "frozen_time",
+    name: "Time Stop: Hollow Purple",
+    character: "Gojo Satoru",
+    description:
+      "Every 10s, freeze ALL enemies solid for 3 seconds. You move freely.",
+    emoji: "❄️",
+    color: "oklch(0.80 0.20 200)",
+    apply: (s) => {
+      s.frozenTime = true;
+      s.frozenTimeCd = 0;
+      s.frozenTimeTimer = 0;
+    },
+  },
+  {
+    id: "black_hole",
+    name: "Gravitational Singularity",
+    character: "Kenjaku",
+    description:
+      "Every 8s, spawn a black hole that sucks in ALL enemies and deals 200 damage.",
+    emoji: "🌑",
+    color: "oklch(0.20 0.15 300)",
+    apply: (s) => {
+      s.blackHole = true;
+      s.blackHoleCd = 0;
+    },
+  },
+  {
+    id: "domain_amplification",
+    name: "Domain Amplification: Absolute",
+    character: "Yuta Okkotsu",
+    description:
+      "Triply amplify all damage. All projectiles pierce every enemy. Fire rate halved.",
+    emoji: "🌀",
+    color: "oklch(0.70 0.35 340)",
+    apply: (s) => {
+      s.domainAmplification = true;
+      s.dmgMultiplier *= 3;
+      s.piercingShots = true;
+      s.shootCdBase = Math.max(3, Math.floor(s.shootCdBase * 0.5));
+    },
+  },
+  {
+    id: "cursed_rain",
+    name: "Cursed Rain of Destruction",
+    character: "Suguru Geto",
+    description:
+      "Every 3s, 20 cursed energy bolts fall from the sky, each dealing 60 damage.",
+    emoji: "🌧️",
+    color: "oklch(0.55 0.28 130)",
+    apply: (s) => {
+      s.cursedRain = true;
+      s.cursedRainCd = 0;
+    },
+  },
+  {
+    id: "thorns",
+    name: "Cursed Thorn Aegis",
+    character: "Hanami",
+    description:
+      "Reflect 300% of any damage taken back at attackers. The more they hit you, the more they die.",
+    emoji: "🌿",
+    color: "oklch(0.65 0.28 145)",
+    apply: (s) => {
+      s.thorns = true;
+      s.thornsDmg = 3.0;
+    },
+  },
+  {
+    id: "massive_regen",
+    name: "Reverse Cursed Technique: MAX",
+    character: "Sukuna",
+    description:
+      "Regenerate 15 HP every second. Practically impossible to die from chip damage.",
+    emoji: "💚",
+    color: "oklch(0.75 0.30 140)",
+    apply: (s) => {
+      s.massiveRegen = true;
+      s.massiveRegenTimer = 0;
+    },
+  },
+  {
+    id: "death_burst",
+    name: "Death Explosion Nova",
+    character: "Choso",
+    description:
+      "Every enemy death triggers a 180px explosion dealing 150 damage to all nearby enemies.",
+    emoji: "💥",
+    color: "oklch(0.65 0.32 20)",
+    apply: (s) => {
+      s.deathBurst = true;
+      s.deathBurstRadius = 180;
+    },
+  },
+  {
+    id: "god_mode",
+    name: "Limitless: God Form",
+    character: "Gojo Satoru",
+    description:
+      "Every 20s, become completely invincible and deal 10× damage for 5 seconds.",
+    emoji: "✨",
+    color: "oklch(0.98 0.05 100)",
+    apply: (s) => {
+      s.godMode = true;
+      s.godModeCd = 0;
+      s.godModeTimer = 0;
+    },
+  },
+  {
+    id: "infinite_ammo",
+    name: "Curtain: Endless Barrage",
+    character: "Gojo Satoru",
+    description:
+      "Fire 3 projectiles per frame at no cooldown for 2 seconds every 6 seconds.",
+    emoji: "∞",
+    color: "oklch(0.80 0.25 260)",
+    apply: (s) => {
+      s.infiniteAmmo = true;
+    },
+  },
+  {
+    id: "super_orb",
+    name: "Soul Orb Harvest",
+    character: "Mahito",
+    description:
+      "Each orb collected now heals 50 HP and grants +3 score multiplier permanently.",
+    emoji: "💎",
+    color: "oklch(0.70 0.20 310)",
+    apply: (s) => {
+      s.superOrb = true;
+    },
+  },
+  {
+    id: "ultra_black_flash",
+    name: "Black Flash: Zero Point",
+    character: "Yuji Itadori",
+    description:
+      "75% chance to deal 10× damage on every hit. Absolutely broken.",
+    emoji: "🖤",
+    color: "oklch(0.25 0.10 270)",
+    apply: (s) => {
+      s.ultraBlackFlash = true;
+      s.blackFlashChance = 0.75;
+    },
+  },
+  {
+    id: "soul_absorb",
+    name: "Idle Transfiguration",
+    character: "Mahito",
+    description:
+      "Every kill permanently increases your max HP by 5. Stack it forever.",
+    emoji: "👻",
+    color: "oklch(0.60 0.22 300)",
+    apply: (s) => {
+      s.soulAbsorb = true;
+      s.soulAbsorbCount = 0;
+    },
+  },
+  {
+    id: "chain_explosion",
+    name: "Blood Manipulation: Chain Detonation",
+    character: "Choso",
+    description:
+      "Explosions chain-react: each explosion triggers more explosions, up to 5 deep.",
+    emoji: "🔗",
+    color: "oklch(0.55 0.30 10)",
+    apply: (s) => {
+      s.chainExplosion = true;
+      s.explosiveShots = true;
+    },
+  },
+  {
+    id: "cursed_storm",
+    name: "Chimera Shadow Garden Storm",
+    character: "Megumi Fushiguro",
+    description:
+      "Every 5s, a shadow storm deals 50 damage to all enemies and stuns them for 2s.",
+    emoji: "🌪️",
+    color: "oklch(0.35 0.18 270)",
+    apply: (s) => {
+      s.cursedStorm = true;
+      s.cursedStormCd = 0;
+    },
+  },
+  {
+    id: "teleport",
+    name: "Space Distortion: Warp",
+    character: "Gojo Satoru",
+    description:
+      "Press SPACE to instantly teleport to your cursor. 1 second cooldown.",
+    emoji: "🌐",
+    color: "oklch(0.70 0.28 195)",
+    apply: (s) => {
+      s.teleport = true;
+      s.teleportCd = 0;
+    },
+  },
+  {
+    id: "nuke_wave",
+    name: "Sukuna: Dismantle & Cleave",
+    character: "Ryomen Sukuna",
+    description:
+      "At wave start, instantly delete 50% of all enemies. Pure king energy.",
+    emoji: "👹",
+    color: "oklch(0.65 0.32 15)",
+    apply: (s) => {
+      s.dmgMultiplier *= 2;
+      s.player.maxHp += 200;
+      s.player.hp = Math.min(s.player.hp + 200, s.player.maxHp);
+      // Kill half the enemies right now
+      let killed = 0;
+      const half = Math.floor(s.enemies.filter((e) => !e.dead).length / 2);
+      for (const e of s.enemies) {
+        if (!e.dead && killed < half) {
+          e.dead = true;
+          killed++;
+        }
+      }
+    },
+  },
+  {
+    id: "true_infinity",
+    name: "True Infinity",
+    character: "Gojo Satoru",
+    description:
+      "Permanently reduce ALL incoming damage to 1. The strongest there is.",
+    emoji: "♾️",
+    color: "oklch(0.95 0.15 220)",
+    apply: (s) => {
+      s.dmgReductionPct = Math.min(0.99, s.dmgReductionPct + 0.95);
+      s.iframeBonus += 60;
+    },
+  },
 ];
 
 function lerp(a: number, b: number, t: number) {
@@ -457,6 +986,61 @@ function initGame(): GameState {
     healOnHit: false,
     hasHollowPurple: false,
     hollowPurpleCounter: 0,
+    // Extended overpowered abilities
+    quadShot: false,
+    burstShot: false,
+    burstCounter: 0,
+    homingShots: false,
+    explosiveShots: false,
+    vampiricStrike: false,
+    shieldHp: 0,
+    hasShield: false,
+    shieldRechargeCd: 0,
+    timeSlowActive: false,
+    timeSlowCd: 0,
+    timeSlowTimer: 0,
+    doomAura: false,
+    doomAuraCd: 0,
+    cloneActive: false,
+    clonePos: null,
+    cloneShootCd: 0,
+    spikeAura: false,
+    dmgReductionPct: 0,
+    orbBombActive: false,
+    doubleScore: false,
+    instaKillBelowPct: 0,
+    // Ultra-OP new abilities
+    multiShotCount: 1,
+    ricochets: false,
+    chainLightning: false,
+    chainLightningCd: 0,
+    frozenTime: false,
+    frozenTimeCd: 0,
+    frozenTimeTimer: 0,
+    blackHole: false,
+    blackHoleCd: 0,
+    domainAmplification: false,
+    cursedRain: false,
+    cursedRainCd: 0,
+    thorns: false,
+    thornsDmg: 0,
+    massiveRegen: false,
+    massiveRegenTimer: 0,
+    deathBurst: false,
+    deathBurstRadius: 0,
+    godMode: false,
+    godModeCd: 0,
+    godModeTimer: 0,
+    infiniteAmmo: false,
+    superOrb: false,
+    ultraBlackFlash: false,
+    soulAbsorb: false,
+    soulAbsorbCount: 0,
+    chainExplosion: false,
+    cursedStorm: false,
+    cursedStormCd: 0,
+    teleport: false,
+    teleportCd: 0,
   };
 }
 
@@ -778,12 +1362,186 @@ export default function SurvivalGame() {
             }
           }
 
+          // Burst shot: every 5th shot triggers 5-bullet burst
+          if (s.burstShot) {
+            s.burstCounter = (s.burstCounter || 0) + 1;
+            if (s.burstCounter >= 5) {
+              s.burstCounter = 0;
+              for (let bi = 0; bi < 4; bi++) {
+                setTimeout(
+                  () => {
+                    if (!s.enemies.some((e) => !e.dead)) return;
+                    const bdir = norm({
+                      x: mouseRef.current.x - p.pos.x,
+                      y: mouseRef.current.y - p.pos.y,
+                    });
+                    if (bdir.x !== 0 || bdir.y !== 0) {
+                      s.projectiles.push({
+                        id: s.nextId++,
+                        pos: { x: p.pos.x, y: p.pos.y },
+                        vel: { x: bdir.x * 9, y: bdir.y * 9 },
+                        radius: 5,
+                        fromPlayer: true,
+                        dead: false,
+                        piercing: s.piercingShots,
+                      });
+                    }
+                  },
+                  (bi + 1) * 60,
+                );
+              }
+            }
+          }
+
+          // Quad shot
+          if (s.quadShot) {
+            for (let qi = 0; qi < 4; qi++) {
+              const qa = (qi * Math.PI) / 2;
+              s.projectiles.push({
+                id: s.nextId++,
+                pos: { x: p.pos.x, y: p.pos.y },
+                vel: { x: Math.cos(qa) * 7, y: Math.sin(qa) * 7 },
+                radius: 5,
+                fromPlayer: true,
+                dead: false,
+                piercing: s.piercingShots,
+              });
+            }
+          }
+
+          // Multi-shot (Unlimited Void Barrage): fire in all directions
+          if (s.multiShotCount > 1) {
+            const extra = s.multiShotCount;
+            for (let mi = 0; mi < extra; mi++) {
+              const ma = (mi / extra) * 2 * Math.PI;
+              s.projectiles.push({
+                id: s.nextId++,
+                pos: { x: p.pos.x, y: p.pos.y },
+                vel: { x: Math.cos(ma) * 8, y: Math.sin(ma) * 8 },
+                radius: 5,
+                fromPlayer: true,
+                dead: false,
+                piercing: s.piercingShots,
+              });
+            }
+          }
+
           shootCdRef.current = s.shootCdBase;
         }
       }
 
       // Iframes
       if (p.iframes > 0) p.iframes--;
+
+      // Shield recharge
+      if (s.hasShield && s.shieldHp <= 0) {
+        s.shieldRechargeCd++;
+        if (s.shieldRechargeCd >= 600) {
+          s.shieldHp = 150;
+          s.shieldRechargeCd = 0;
+        }
+      }
+
+      // Time Slow: Idle Death Gamble
+      if (s.timeSlowActive) {
+        s.timeSlowCd++;
+        if (s.timeSlowTimer > 0) {
+          s.timeSlowTimer--;
+        }
+        if (s.timeSlowCd >= 480) {
+          s.timeSlowCd = 0;
+          s.timeSlowTimer = 180; // 3 sec slow
+          spawnParticles(p.pos, "#6644ff", 20, 6);
+        }
+      }
+
+      // Doom Aura: Divergent Sigil
+      if (s.doomAura) {
+        s.doomAuraCd++;
+        if (s.doomAuraCd >= 30) {
+          s.doomAuraCd = 0;
+          for (const e of s.enemies) {
+            if (e.dead) continue;
+            if (dist(e.pos, p.pos) < 100) {
+              e.hp -= 1.5;
+              if (Math.random() < 0.1) spawnParticles(e.pos, "#ffaa00", 3, 2);
+              if (e.hp <= 0) {
+                e.dead = true;
+                const pts =
+                  e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                s.score += s.doubleScore ? pts * 2 : pts;
+                if (s.vampiricStrike) p.hp = Math.min(p.maxHp, p.hp + 20);
+                if (s.vampiricStrike) {
+                  p.hp = Math.min(p.maxHp, p.hp + 20);
+                }
+                if (s.aoeOnKill) {
+                  for (const ae of s.enemies) {
+                    if (!ae.dead && dist(ae.pos, e.pos) < 60) ae.hp -= 25;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Clone: fires independently
+      if (s.cloneActive && s.clonePos) {
+        // Move clone toward player slowly
+        const cd = norm({
+          x: p.pos.x - s.clonePos.x,
+          y: p.pos.y - s.clonePos.y,
+        });
+        const cdist = dist(p.pos, s.clonePos);
+        if (cdist > 80) {
+          s.clonePos.x += cd.x * 1.5;
+          s.clonePos.y += cd.y * 1.5;
+        }
+        s.cloneShootCd--;
+        if (s.cloneShootCd <= 0) {
+          s.cloneShootCd = s.shootCdBase + 5;
+          // Find nearest enemy
+          let nearest: (typeof s.enemies)[0] | null = null;
+          let nearDist = Number.POSITIVE_INFINITY;
+          for (const e of s.enemies) {
+            if (e.dead) continue;
+            const d = dist(s.clonePos, e.pos);
+            if (d < nearDist) {
+              nearDist = d;
+              nearest = e;
+            }
+          }
+          if (nearest) {
+            const cdir = norm({
+              x: nearest.pos.x - s.clonePos.x,
+              y: nearest.pos.y - s.clonePos.y,
+            });
+            s.projectiles.push({
+              id: s.nextId++,
+              pos: { x: s.clonePos.x, y: s.clonePos.y },
+              vel: { x: cdir.x * 8, y: cdir.y * 8 },
+              radius: 5,
+              fromPlayer: true,
+              dead: false,
+              piercing: s.piercingShots,
+            });
+          }
+        }
+      }
+
+      // Instakill below HP threshold
+      if (s.instaKillBelowPct > 0) {
+        for (const e of s.enemies) {
+          if (e.dead) continue;
+          if (e.hp / e.maxHp < s.instaKillBelowPct) {
+            e.dead = true;
+            const pts = e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+            s.score += s.doubleScore ? pts * 2 : pts;
+            spawnParticles(e.pos, "#ff2200", 12, 4);
+            if (s.vampiricStrike) p.hp = Math.min(p.maxHp, p.hp + 20);
+          }
+        }
+      }
 
       // Regen
       if (s.hasRegen) {
@@ -820,6 +1578,163 @@ export default function SurvivalGame() {
         }
       }
 
+      // Massive Regen
+      if (s.massiveRegen) {
+        s.massiveRegenTimer++;
+        if (s.massiveRegenTimer >= 60) {
+          s.massiveRegenTimer = 0;
+          p.hp = Math.min(p.maxHp, p.hp + 15);
+        }
+      }
+
+      // God Mode
+      if (s.godMode) {
+        s.godModeCd++;
+        if (s.godModeTimer > 0) {
+          s.godModeTimer--;
+          p.iframes = 9999;
+        } else if (s.godModeCd >= 1200) {
+          s.godModeCd = 0;
+          s.godModeTimer = 300; // 5s
+          s.dmgMultiplier *= 10;
+          setTimeout(() => {
+            s.dmgMultiplier /= 10;
+          }, 5100);
+        }
+      }
+
+      // Chain Lightning
+      if (s.chainLightning) {
+        s.chainLightningCd++;
+        if (s.chainLightningCd >= 120) {
+          s.chainLightningCd = 0;
+          for (const e of s.enemies) {
+            if (!e.dead) {
+              e.hp -= 80;
+              spawnParticles(e.pos, "#ffff00", 6, 3);
+              if (e.hp <= 0) {
+                e.dead = true;
+                const pts =
+                  e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                s.score += s.doubleScore ? pts * 2 : pts;
+                if (s.soulAbsorb) {
+                  s.soulAbsorbCount++;
+                  p.maxHp += 5;
+                  p.hp = Math.min(p.hp + 5, p.maxHp);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Frozen Time
+      if (s.frozenTime) {
+        if (s.frozenTimeTimer > 0) {
+          s.frozenTimeTimer--;
+        } else {
+          s.frozenTimeCd++;
+          if (s.frozenTimeCd >= 600) {
+            s.frozenTimeCd = 0;
+            s.frozenTimeTimer = 180;
+            spawnParticles(p.pos, "#88eeff", 20, 6);
+          }
+        }
+      }
+
+      // Black Hole
+      if (s.blackHole) {
+        s.blackHoleCd++;
+        if (s.blackHoleCd >= 480) {
+          s.blackHoleCd = 0;
+          for (const e of s.enemies) {
+            if (!e.dead) {
+              // Pull toward center
+              const dir = norm({ x: W / 2 - e.pos.x, y: H / 2 - e.pos.y });
+              e.pos.x += dir.x * 80;
+              e.pos.y += dir.y * 80;
+              e.hp -= 200;
+              spawnParticles(e.pos, "#440066", 8, 4);
+              if (e.hp <= 0) {
+                e.dead = true;
+                const pts =
+                  e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                s.score += s.doubleScore ? pts * 2 : pts;
+                if (s.soulAbsorb) {
+                  s.soulAbsorbCount++;
+                  p.maxHp += 5;
+                  p.hp = Math.min(p.hp + 5, p.maxHp);
+                }
+              }
+            }
+          }
+          spawnParticles({ x: W / 2, y: H / 2 }, "#8800ff", 30, 8);
+        }
+      }
+
+      // Cursed Rain
+      if (s.cursedRain) {
+        s.cursedRainCd++;
+        if (s.cursedRainCd >= 180) {
+          s.cursedRainCd = 0;
+          for (let i = 0; i < 20; i++) {
+            const rx = Math.random() * W;
+            const ry = Math.random() * H;
+            const rainPos = { x: rx, y: ry };
+            for (const e of s.enemies) {
+              if (!e.dead && dist(e.pos, rainPos) < 40) {
+                e.hp -= 60;
+                spawnParticles(e.pos, "#00ff44", 5, 3);
+                if (e.hp <= 0) {
+                  e.dead = true;
+                  const pts =
+                    e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                  s.score += s.doubleScore ? pts * 2 : pts;
+                  if (s.soulAbsorb) {
+                    s.soulAbsorbCount++;
+                    p.maxHp += 5;
+                    p.hp = Math.min(p.hp + 5, p.maxHp);
+                  }
+                }
+              }
+            }
+            spawnParticles(rainPos, "#00cc44", 3, 2);
+          }
+        }
+      }
+
+      // Cursed Storm
+      if (s.cursedStorm) {
+        s.cursedStormCd++;
+        if (s.cursedStormCd >= 300) {
+          s.cursedStormCd = 0;
+          for (const e of s.enemies) {
+            if (!e.dead) {
+              e.hp -= 50;
+              // stun for 2s = 120 frames via slow multiplier doesn't have stun, simulate via iframes-like
+              spawnParticles(e.pos, "#6600cc", 8, 4);
+              if (e.hp <= 0) {
+                e.dead = true;
+                const pts =
+                  e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                s.score += s.doubleScore ? pts * 2 : pts;
+                if (s.soulAbsorb) {
+                  s.soulAbsorbCount++;
+                  p.maxHp += 5;
+                  p.hp = Math.min(p.hp + 5, p.maxHp);
+                }
+              }
+            }
+          }
+          spawnParticles(p.pos, "#9933ff", 20, 6);
+        }
+      }
+
+      // Teleport cooldown
+      if (s.teleport && s.teleportCd > 0) {
+        s.teleportCd--;
+      }
+
       // Orb magnet
       if (s.orbMagnet) {
         for (const orb of s.orbs) {
@@ -839,12 +1754,18 @@ export default function SurvivalGame() {
 
         if (e.type === "ranged") {
           const d = dist(e.pos, p.pos);
+          const tSlowFactor =
+            s.frozenTimeTimer > 0 ? 0 : s.timeSlowTimer > 0 ? 0.2 : 1;
           if (d < 180) {
-            e.pos.x -= toPlayer.x * e.speed * s.enemySlowMultiplier;
-            e.pos.y -= toPlayer.y * e.speed * s.enemySlowMultiplier;
+            e.pos.x -=
+              toPlayer.x * e.speed * s.enemySlowMultiplier * tSlowFactor;
+            e.pos.y -=
+              toPlayer.y * e.speed * s.enemySlowMultiplier * tSlowFactor;
           } else if (d > 220) {
-            e.pos.x += toPlayer.x * e.speed * s.enemySlowMultiplier;
-            e.pos.y += toPlayer.y * e.speed * s.enemySlowMultiplier;
+            e.pos.x +=
+              toPlayer.x * e.speed * s.enemySlowMultiplier * tSlowFactor;
+            e.pos.y +=
+              toPlayer.y * e.speed * s.enemySlowMultiplier * tSlowFactor;
           }
           e.shootCd--;
           if (e.shootCd <= 0) {
@@ -859,8 +1780,12 @@ export default function SurvivalGame() {
             });
           }
         } else {
-          e.pos.x += toPlayer.x * e.speed * s.enemySlowMultiplier;
-          e.pos.y += toPlayer.y * e.speed * s.enemySlowMultiplier;
+          const tSlowFactor2 =
+            s.frozenTimeTimer > 0 ? 0 : s.timeSlowTimer > 0 ? 0.2 : 1;
+          e.pos.x +=
+            toPlayer.x * e.speed * s.enemySlowMultiplier * tSlowFactor2;
+          e.pos.y +=
+            toPlayer.y * e.speed * s.enemySlowMultiplier * tSlowFactor2;
         }
 
         // Melee damage
@@ -869,7 +1794,42 @@ export default function SurvivalGame() {
           dist(e.pos, p.pos) < e.radius + p.radius &&
           p.iframes === 0
         ) {
-          const dmg = e.type === "tank" ? 20 : 10;
+          const rawDmg = e.type === "tank" ? 20 : 10;
+          let dmg = rawDmg;
+          if (s.hasShield && s.shieldHp > 0) {
+            const blocked = Math.min(s.shieldHp, dmg);
+            s.shieldHp -= blocked;
+            dmg -= blocked;
+          }
+          if (s.dmgReductionPct > 0)
+            dmg = Math.round(dmg * (1 - s.dmgReductionPct));
+          if (s.spikeAura) {
+            e.hp -= 40;
+            const kb = norm({ x: e.pos.x - p.pos.x, y: e.pos.y - p.pos.y });
+            e.pos.x += kb.x * 60;
+            e.pos.y += kb.y * 60;
+            spawnParticles(e.pos, "#00ff88", 8, 4);
+            if (e.hp <= 0) {
+              e.dead = true;
+              const spts = e.type === "tank" ? 30 : 10;
+              s.score += s.doubleScore ? spts * 2 : spts;
+              if (s.vampiricStrike) p.hp = Math.min(p.maxHp, p.hp + 20);
+            }
+          }
+          // Thorns reflect
+          if (s.thorns && s.thornsDmg > 0) {
+            e.hp -= Math.round(rawDmg * s.thornsDmg);
+            spawnParticles(e.pos, "#00ff88", 6, 3);
+            if (e.hp <= 0) {
+              e.dead = true;
+              const tpts = e.type === "tank" ? 30 : 10;
+              s.score += s.doubleScore ? tpts * 2 : tpts;
+              if (s.soulAbsorb) {
+                p.maxHp += 5;
+                p.hp = Math.min(p.hp + 5, p.maxHp);
+              }
+            }
+          }
           p.hp -= dmg;
           p.iframes = 45 + s.iframeBonus;
           spawnParticles(p.pos, "#ff4444", 6, 3);
@@ -885,7 +1845,56 @@ export default function SurvivalGame() {
         if (proj.dead) continue;
         proj.pos.x += proj.vel.x;
         proj.pos.y += proj.vel.y;
-        if (
+
+        // Homing shots
+        if (proj.fromPlayer && s.homingShots && !proj.isHollowPurple) {
+          let nearestEnemy: (typeof s.enemies)[0] | null = null;
+          let nearD = Number.POSITIVE_INFINITY;
+          for (const e of s.enemies) {
+            if (e.dead) continue;
+            const d = dist(proj.pos, e.pos);
+            if (d < nearD && d < 200) {
+              nearD = d;
+              nearestEnemy = e;
+            }
+          }
+          if (nearestEnemy) {
+            const td = norm({
+              x: nearestEnemy.pos.x - proj.pos.x,
+              y: nearestEnemy.pos.y - proj.pos.y,
+            });
+            proj.vel.x = lerp(proj.vel.x, td.x * 8, 0.12);
+            proj.vel.y = lerp(proj.vel.y, td.y * 8, 0.12);
+          }
+        }
+        // Ricochet off walls
+        if (s.ricochets && proj.fromPlayer) {
+          const bounces = (proj as any).bounceCount || 0;
+          if (proj.pos.x < 0) {
+            proj.pos.x = 0;
+            proj.vel.x = Math.abs(proj.vel.x);
+            (proj as any).bounceCount = bounces + 1;
+          }
+          if (proj.pos.x > W) {
+            proj.pos.x = W;
+            proj.vel.x = -Math.abs(proj.vel.x);
+            (proj as any).bounceCount = bounces + 1;
+          }
+          if (proj.pos.y < 0) {
+            proj.pos.y = 0;
+            proj.vel.y = Math.abs(proj.vel.y);
+            (proj as any).bounceCount = bounces + 1;
+          }
+          if (proj.pos.y > H) {
+            proj.pos.y = H;
+            proj.vel.y = -Math.abs(proj.vel.y);
+            (proj as any).bounceCount = bounces + 1;
+          }
+          if ((proj as any).bounceCount >= 5) {
+            proj.dead = true;
+            continue;
+          }
+        } else if (
           proj.pos.x < -20 ||
           proj.pos.x > W + 20 ||
           proj.pos.y < -20 ||
@@ -900,6 +1909,29 @@ export default function SurvivalGame() {
             if (dist(proj.pos, e.pos) < proj.radius + e.radius) {
               if (!proj.piercing) proj.dead = true;
               let dmg = (20 + s.wave * 2) * s.dmgMultiplier;
+
+              // Explosive shots AoE
+              if (s.explosiveShots) {
+                for (const ae of s.enemies) {
+                  if (ae.dead || ae === e) continue;
+                  if (dist(proj.pos, ae.pos) < 60) {
+                    ae.hp -= dmg * 3;
+                    spawnParticles(ae.pos, "#ff8800", 6, 3);
+                    if (ae.hp <= 0) {
+                      ae.dead = true;
+                      const epts =
+                        ae.type === "tank"
+                          ? 30
+                          : ae.type === "ranged"
+                            ? 20
+                            : 10;
+                      s.score += s.doubleScore ? epts * 2 : epts;
+                      if (s.vampiricStrike) p.hp = Math.min(p.maxHp, p.hp + 20);
+                    }
+                  }
+                }
+                spawnParticles(proj.pos, "#ff6600", 10, 5);
+              }
 
               // Hollow Purple AoE
               if (proj.isHollowPurple) {
@@ -929,8 +1961,12 @@ export default function SurvivalGame() {
                 break;
               }
 
-              // Black Flash
-              if (
+              // Black Flash / Ultra Black Flash
+              if (s.ultraBlackFlash && Math.random() < 0.75) {
+                dmg *= 10;
+                spawnParticles(e.pos, "#000000", 12, 6);
+                spawnParticles(e.pos, "#ffffff", 8, 8);
+              } else if (
                 s.blackFlashChance > 0 &&
                 Math.random() < s.blackFlashChance
               ) {
@@ -959,9 +1995,41 @@ export default function SurvivalGame() {
 
               if (e.hp <= 0) {
                 e.dead = true;
-                s.score +=
+                const kPts =
                   e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                s.score += s.doubleScore ? kPts * 2 : kPts;
                 spawnParticles(e.pos, typeColor(e.type), 12, 4);
+                // Soul Absorb
+                if (s.soulAbsorb) {
+                  s.soulAbsorbCount++;
+                  p.maxHp += 5;
+                  p.hp = Math.min(p.hp + 5, p.maxHp);
+                }
+                // Death Burst
+                if (s.deathBurst) {
+                  const br = s.deathBurstRadius;
+                  for (const de of s.enemies) {
+                    if (!de.dead && dist(de.pos, e.pos) < br) {
+                      de.hp -= 150;
+                      spawnParticles(de.pos, "#ff4400", 8, 4);
+                      if (de.hp <= 0) {
+                        de.dead = true;
+                        const dPts =
+                          de.type === "tank"
+                            ? 30
+                            : de.type === "ranged"
+                              ? 20
+                              : 10;
+                        s.score += s.doubleScore ? dPts * 2 : dPts;
+                        if (s.soulAbsorb) {
+                          p.maxHp += 5;
+                          p.hp = Math.min(p.hp + 5, p.maxHp);
+                        }
+                      }
+                    }
+                  }
+                  spawnParticles(e.pos, "#ff6600", 20, 6);
+                }
                 // Heal on kill
                 if (s.healOnHit) {
                   p.hp = Math.min(p.maxHp, p.hp + 8);
@@ -1006,7 +2074,15 @@ export default function SurvivalGame() {
             p.iframes === 0
           ) {
             proj.dead = true;
-            p.hp -= 12;
+            let rdmg = 12;
+            if (s.hasShield && s.shieldHp > 0) {
+              const rblocked = Math.min(s.shieldHp, rdmg);
+              s.shieldHp -= rblocked;
+              rdmg -= rblocked;
+            }
+            if (s.dmgReductionPct > 0)
+              rdmg = Math.round(rdmg * (1 - s.dmgReductionPct));
+            p.hp -= rdmg;
             p.iframes = 30 + s.iframeBonus;
             spawnParticles(p.pos, "#ff4444", 6, 3);
             if (p.hp <= 0) {
@@ -1023,7 +2099,29 @@ export default function SurvivalGame() {
         if (dist(orb.pos, p.pos) < ORB_RADIUS + COLLECT_RANGE) {
           orb.dead = true;
           s.orbCount++;
-          s.score += 5;
+          s.score += s.doubleScore ? 10 : 5;
+          if (s.superOrb) {
+            p.hp = Math.min(p.maxHp, p.hp + 50);
+            s.dmgMultiplier += 0.1;
+            spawnParticles(p.pos, "#ffdd44", 10, 4);
+          }
+          if (s.orbBombActive) {
+            for (const e of s.enemies) {
+              if (e.dead) continue;
+              if (dist(orb.pos, e.pos) < 100) {
+                e.hp -= 80;
+                spawnParticles(e.pos, "#ffdd00", 8, 4);
+                if (e.hp <= 0) {
+                  e.dead = true;
+                  const opts =
+                    e.type === "tank" ? 30 : e.type === "ranged" ? 20 : 10;
+                  s.score += s.doubleScore ? opts * 2 : opts;
+                  if (s.vampiricStrike) p.hp = Math.min(p.maxHp, p.hp + 20);
+                }
+              }
+            }
+            spawnParticles(orb.pos, "#ffdd00", 15, 6);
+          }
           spawnParticles(orb.pos, "#4499ff", 8, 2);
           // Reverse Cursed Technique healing
           if (s.pickedAbilities.includes("reverse_cursed")) {
